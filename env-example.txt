@@ -1,0 +1,21 @@
+# Slack設定
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+SLACK_SIGNING_SECRET=your-slack-signing-secret
+
+# Google Cloud設定
+GCP_PROJECT_ID=your-gcp-project-id
+GCP_LOCATION=us-central1
+GCP_KEY_FILE=path/to/your/service-account-key.json
+
+# Cloud Storage設定
+GCS_BUCKET_NAME=your-gcs-bucket-name
+
+# アプリケーション設定
+NODE_ENV=development
+PORT=8080
+
+# ログレベル (error, warn, info, http, verbose, debug, silly)
+LOG_LEVEL=info
+
+# Gemini API (オプション - デフォルトはサービスアカウント認証)
+GEMINI_API_KEY=your-gemini-api-key
