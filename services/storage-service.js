@@ -3,8 +3,8 @@ const { Storage } = require('@google-cloud/storage');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const config = require('../config/config');
-const logger = require('../utils/logger');
+const config = require('../config/config.js');
+const logger = require('../utils/logger.js');
 
 // Google Cloud Storageクライアントの初期化
 const storage = new Storage();

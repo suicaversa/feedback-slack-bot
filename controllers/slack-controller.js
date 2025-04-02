@@ -1,9 +1,9 @@
-// controllers/slackController.js
-const slackService = require('../services/slackService');
-const fileService = require('../services/fileService');
-const aiService = require('../services/aiService');
-const commandParser = require('../utils/commandParser');
-const logger = require('../utils/logger');
+// controllers/slack-controller.js
+const slackService = require('../services/slack-service.js');
+const fileService = require('../services/file-service.js');
+const aiService = require('../services/ai-service.js');
+const commandParser = require('../utils/command-parser.js');
+const logger = require('../utils/logger.js');
 
 /**
  * Slackからのイベントを処理する

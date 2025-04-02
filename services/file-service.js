@@ -4,9 +4,9 @@ const path = require('path');
 const os = require('os');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
-const slackService = require('./slackService');
-const config = require('../config/config');
-const logger = require('../utils/logger');
+const slackService = require('./slack-service.js');
+const config = require('../config/config.js');
+const logger = require('../utils/logger.js');
 
 /**
  * 対象の音声/動画ファイルを探す

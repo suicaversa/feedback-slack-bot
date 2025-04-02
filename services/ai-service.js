@@ -2,9 +2,9 @@
 const { VertexAI } = require('@google-cloud/vertexai');
 const fs = require('fs');
 const path = require('path');
-const storageService = require('./storageService');
-const logger = require('../utils/logger');
-const config = require('../config/config');
+const storageService = require('./storage-service.js');
+const logger = require('../utils/logger.js');
+const config = require('../config/config.js');
 
 // Vertex AI クライアントの初期化
 const vertexai = new VertexAI({
@@ -40,8 +40,14 @@ const multimodalModel = vertexai.preview.getGenerativeModel({
  * @returns {Promise<string>} - 処理結果
  */
 exports.processMediaFile = async ({ filePath, fileType, command, additionalContext }) => {
-  logger.info(`メディアファイル処理開始: ${path.basename(filePath)}, コマンド: ${command}`);
-  
+  logger.info(`メディアファイル処理開始 (ダミーモード): ${path.basename(filePath)}, コマンド: ${command}`);
+
+  // --- 一時的にAI処理をスキップし、ダミーテキストを返す ---
+  logger.warn('AI処理をスキップしてダミーテキストを返します。');
+  return Promise.resolve(`ダミーの処理結果です (コマンド: ${command}, ファイルタイプ: ${fileType})`);
+  // --- ここまで ---
+
+  /* --- 元の処理 (コメントアウト) ---
   try {
     // 音声ファイルの場合は音声認識を行う
     if (isAudioFile(fileType)) {
@@ -59,6 +65,7 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     logger.error(`AI処理中にエラーが発生しました: ${error.message}`, { error });
     throw error;
   }
+  */
 };
 
 /**
