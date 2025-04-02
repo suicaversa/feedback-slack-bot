@@ -99,12 +99,27 @@ graph TD
 ### 1. 前提条件
 
 *   Node.js (開発環境)
-*   Google Cloud SDK (gcloud CLI)
-*   Docker
-*   `ffmpeg` (Cloud Runコンテナに含める必要あり)
-*   Slack Appの作成と設定
-*   Google Cloudプロジェクトと必要なAPIの有効化 (Vertex AI, Speech-to-Text, Cloud Storage)
-*   サービスアカウントの作成とキーの取得 (Cloud RunからGCP APIへのアクセス用)
+*   Google Cloud SDK (`gcloud` CLI)
+*   Docker (Cloud Run デプロイの場合)
+*   `ffmpeg` (動画処理を行う場合、実行環境に必要)
+*   Slack Appの作成と設定 (Bot Token, Signing Secret)
+*   Google Cloud プロジェクトと以下の API の有効化:
+    *   Vertex AI API (または Generative Language API)
+    *   Cloud Functions API
+    *   Cloud Build API (デプロイ時に使用される)
+    *   Artifact Registry API (コンテナイメージを保存する場合)
+    *   (オプション) Cloud Storage API (GCS を使用する場合)
+    *   (オプション) Cloud Logging API, Cloud Monitoring API
+*   **サービスアカウントの作成と設定 (初回デプロイ時):**
+    *   Cloud Functions が使用するサービスアカウントを作成します。例:
+        ```bash
+        gcloud iam service-accounts create slack-bot-sa --display-name="Slack Feedback Bot Service Account" --project={YOUR_GCP_PROJECT_ID}
+        ```
+    *   作成したサービスアカウントに必要な IAM ロールを付与します。最低限、Gemini API を使用するために `roles/aiplatform.user` が必要です。
+        ```bash
+        gcloud projects add-iam-policy-binding {YOUR_GCP_PROJECT_ID} --member="serviceAccount:slack-bot-sa@{YOUR_GCP_PROJECT_ID}.iam.gserviceaccount.com" --role="roles/aiplatform.user"
+        ```
+    *   作成したサービスアカウントのメールアドレスをメモしておき、後述のデプロイスクリプト (`deploy.sh`) 内の `SERVICE_ACCOUNT` 変数に設定します。
 
 ### 2. 環境変数の設定
 
@@ -149,27 +164,58 @@ npm start
 docker build -t your-image-name .
 ```
 
-### 6. Cloud Runへのデプロイ
+### 6. Cloud Functions (Gen 2) へのデプロイ
 
-Google Artifact Registryなどにイメージをプッシュし、Cloud Runサービスを作成または更新します。
+プロジェクトルートにある `deploy.sh` スクリプトを使用してデプロイします。
 
-```bash
+1.  **スクリプトの編集:** `deploy.sh` を開き、`FUNCTION_NAME`, `REGION`, `SERVICE_ACCOUNT` などの設定項目を自分の環境に合わせて編集します。
+2.  **環境変数の設定:** スクリプトを実行するターミナルで、`.env` ファイルに記載した必要な環境変数 (SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, GCP_PROJECT_ID, GCS_BUCKET_NAME, GEMINI_API_KEY) をエクスポートします。
+    ```bash
+    export SLACK_BOT_TOKEN="your_token"
+    export SLACK_SIGNING_SECRET="your_secret"
+    # ... 他の変数も同様にエクスポート
+    # または source .env コマンドが使える場合:
+    # source .env
+    ```
+3.  **スクリプトの実行:**
+    ```bash
+    ./deploy.sh
+    ```
+
+スクリプトは `gcloud functions deploy` コマンドを実行し、Cloud Functions (第2世代) にアプリケーションをデプロイします。
+
+**注意:** 初回デプロイ時には、前提条件で作成したサービスアカウントが正しく設定されていることを確認してください。
+
+デプロイ後、表示される HTTPS エンドポイント URL (`https://...run.app`) を Slack App のイベントサブスクリプション設定（Request URL）に登録します。
+
+---
+
+**(参考) Cloud Run へのデプロイ (Dockerfile を使用する場合)**
+
+もし Cloud Run を使用する場合は、`Dockerfile` を用意し、以下の手順でデプロイします。
+
+1.  **Docker イメージのビルド:**
+    ```bash
+    docker build -t gcr.io/{YOUR_GCP_PROJECT_ID}/slack-feedback-bot:latest .
+    ```
+2.  **Artifact Registry へのプッシュ:**
+    ```bash
+    docker push gcr.io/{YOUR_GCP_PROJECT_ID}/slack-feedback-bot:latest
+    ```
+3.  **Cloud Run へのデプロイ:**
+    ```bash
 # Artifact Registryにプッシュ (例)
-docker tag your-image-name gcr.io/${GCP_PROJECT_ID}/your-image-name:latest
-docker push gcr.io/${GCP_PROJECT_ID}/your-image-name:latest
+    gcloud run deploy slack-feedback-bot-service \
+      --image gcr.io/{YOUR_GCP_PROJECT_ID}/slack-feedback-bot:latest \
+      --platform managed \
+      --region {YOUR_REGION} \
+      --allow-unauthenticated \
+      --service-account {YOUR_SERVICE_ACCOUNT_EMAIL} \
+      --set-env-vars SLACK_BOT_TOKEN={YOUR_SLACK_BOT_TOKEN},SLACK_SIGNING_SECRET={YOUR_SLACK_SIGNING_SECRET},GCP_PROJECT_ID={YOUR_GCP_PROJECT_ID},GCS_BUCKET_NAME={YOUR_GCS_BUCKET_NAME},GEMINI_API_KEY={YOUR_GEMINI_API_KEY},LOG_LEVEL=info
+    ```
+    **注意:** 環境変数は Cloud Run のシークレットマネージャーを利用することを推奨します。
 
-# Cloud Runにデプロイ
-gcloud run deploy your-service-name \
-  --image gcr.io/${GCP_PROJECT_ID}/your-image-name:latest \
-  --platform managed \
-  --region ${GCP_LOCATION} \
-  --allow-unauthenticated \ # SlackからのWebhookを受け付けるため
-  --set-env-vars SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN},SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET},GCP_PROJECT_ID=${GCP_PROJECT_ID},GCP_LOCATION=${GCP_LOCATION},GCS_BUCKET_NAME=${GCS_BUCKET_NAME},LOG_LEVEL=info \
-  --service-account your-service-account-email@your-gcp-project-id.iam.gserviceaccount.com # 必要な権限を持つサービスアカウント
-```
-**注意:** 環境変数はCloud Runのシークレットマネージャーを利用することを推奨します。
-
-デプロイ後、Cloud RunサービスのエンドポイントURLをSlack Appのイベントサブスクリプション設定（Request URL）に登録します。
+デプロイ後、Cloud Run サービスのエンドポイント URL を Slack App のイベントサブスクリプション設定（Request URL）に登録します。
 
 ## 設定
 
