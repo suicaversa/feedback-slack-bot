@@ -1,7 +1,7 @@
 // utils/slackVerifier.js
 const crypto = require('crypto');
-const config = require('../config/config');
-const logger = require('./logger');
+const config = require('../config/config.js');
+const logger = require('./logger.js');
 
 /**
  * Slackリクエストの署名を検証するミドルウェア

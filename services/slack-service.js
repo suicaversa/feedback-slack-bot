@@ -1,7 +1,7 @@
 // services/slackService.js
 const { WebClient } = require('@slack/web-api');
-const config = require('../config/config');
-const logger = require('../utils/logger');
+const config = require('../config/config.js');
+const logger = require('../utils/logger.js');
 
 // Slack WebClient初期化
 const web = new WebClient(config.SLACK_BOT_TOKEN);

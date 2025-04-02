@@ -1,5 +1,5 @@
 // utils/commandParser.js
-const logger = require('./logger');
+const logger = require('./logger.js');
 
 /**
  * メンションメッセージからコマンドを解析する
