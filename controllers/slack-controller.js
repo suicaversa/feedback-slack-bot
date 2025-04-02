@@ -76,17 +76,19 @@ exports.handleSlackEvent = async (req, res) => {
       return;
     }
     
-    // ファイルをダウンロード
-    const localFilePath = await fileService.downloadFile(targetFile);
+    // ファイルをダウンロード (チャンネルIDとスレッドIDを渡す)
+    const localFilePath = await fileService.downloadFile(targetFile, channel, threadId);
     
-    // コマンドに応じたAI処理
+    // コマンドに応じたAI処理 (チャンネルIDとスレッドIDを渡す)
     const aiResult = await aiService.processMediaFile({
       filePath: localFilePath,
       fileType: targetFile.filetype,
       command: command.action,
-      additionalContext: command.context
+      additionalContext: command.context,
+      channelId: channel,
+      threadTs: threadId
     });
-    
+
     // 結果を返信
     await slackService.postMessage({
       channel,

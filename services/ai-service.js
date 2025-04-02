@@ -37,10 +37,12 @@ const multimodalModel = vertexai.preview.getGenerativeModel({
  * @param {string} options.fileType - ファイルタイプ
  * @param {string} options.command - 実行コマンド
  * @param {string} options.additionalContext - 追加コンテキスト
+ * @param {string} options.channelId - チャンネルID (追加)
+ * @param {string} options.threadTs - スレッドタイムスタンプ (追加)
  * @returns {Promise<string>} - 処理結果
  */
-exports.processMediaFile = async ({ filePath, fileType, command, additionalContext }) => {
-  logger.info(`メディアファイル処理開始 (ダミーモード): ${path.basename(filePath)}, コマンド: ${command}`);
+exports.processMediaFile = async ({ filePath, fileType, command, additionalContext, channelId, threadTs }) => {
+  logger.info(`メディアファイル処理開始 (ダミーモード): ${path.basename(filePath)}, コマンド: ${command}, channel=${channelId}, thread=${threadTs}`);
 
   // --- 一時的にAI処理をスキップし、ダミーテキストを返す ---
   logger.warn('AI処理をスキップしてダミーテキストを返します。');
@@ -51,10 +53,11 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
   try {
     // 音声ファイルの場合は音声認識を行う
     if (isAudioFile(fileType)) {
-      const transcription = await transcribeAudio(filePath);
+      // channelId と threadTs を transcribeAudio に渡す
+      const transcription = await transcribeAudio(filePath, channelId, threadTs);
       return await processTranscription(transcription, command, additionalContext);
     }
-    
+
     // 動画ファイルの場合は動画処理を行う
     if (isVideoFile(fileType)) {
       return await processVideo(filePath, command, additionalContext);
@@ -71,15 +74,17 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
 /**
  * 音声ファイルの文字起こし
  * @param {string} filePath - 音声ファイルパス
+ * @param {string} channelId - チャンネルID
+ * @param {string} threadTs - スレッドタイムスタンプ
  * @returns {Promise<string>} - 文字起こし結果
  */
-async function transcribeAudio(filePath) {
-  logger.info(`音声文字起こし開始: ${path.basename(filePath)}`);
-  
+async function transcribeAudio(filePath, channelId, threadTs) {
+  logger.info(`音声文字起こし開始: ${path.basename(filePath)}, channel=${channelId}, thread=${threadTs}`);
+
   try {
-    // 音声ファイルをGCSにアップロード
-    const gcsUri = await storageService.uploadFile(filePath);
-    
+    // 音声ファイルをGCSにアップロード (チャンネルIDとスレッドTSを渡す)
+    const gcsUri = await storageService.uploadFile(filePath, channelId, threadTs);
+
     // Speech-to-Text APIを使用して音声認識
     // 注: 実際の実装は別のサービスとして切り出すことも検討
     const { SpeechClient } = require('@google-cloud/speech');

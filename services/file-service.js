@@ -38,19 +38,24 @@ exports.findTargetMediaFile = (files) => {
 /**
  * ファイルをダウンロードする
  * @param {Object} file - ファイルオブジェクト
+ * @param {string} channelId - チャンネルID
+ * @param {string} threadTs - スレッドタイムスタンプ
  * @returns {Promise<string>} - ローカルファイルパス
  */
-exports.downloadFile = async (file) => {
+exports.downloadFile = async (file, channelId, threadTs) => {
   try {
-    logger.info(`ファイルダウンロード開始: ${file.name}`);
+    logger.info(`ファイルダウンロード開始: ${file.name}, channel=${channelId}, thread=${threadTs}`);
 
     // ダウンロードURLを取得
     const downloadUrl = await slackService.getFileDownloadUrl(file.id);
 
-    // 一時ファイルパスを作成
-    const tempDir = path.join(os.tmpdir(), 'slack-bot-files');
+    // 一時ファイルパスを作成 (チャンネルIDとスレッドTSを使用)
+    // スレッドTSには '.' が含まれるため、ファイルシステムで安全な文字に置換 (例: '_')
+    const safeThreadTs = threadTs.replace(/\./g, '_');
+    const tempDir = path.join(os.tmpdir(), 'slack-processing', `${channelId}-${safeThreadTs}`);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
+      logger.info(`一時ディレクトリ作成: ${tempDir}`);
     }
 
     // ファイル名衝突を避けるためにUUIDをプレフィックスとして使用

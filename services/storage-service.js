@@ -13,11 +13,13 @@ const bucketName = config.GCS_BUCKET_NAME;
 /**
  * ファイルをGCSにアップロードする
  * @param {string} filePath - ローカルファイルパス
+ * @param {string} channelId - チャンネルID
+ * @param {string} threadTs - スレッドタイムスタンプ
  * @returns {Promise<string>} - GCSファイルURI
  */
-exports.uploadFile = async (filePath) => {
+exports.uploadFile = async (filePath, channelId, threadTs) => {
   try {
-    logger.info(`GCSアップロード開始: ${path.basename(filePath)}`);
+    logger.info(`GCSアップロード開始: ${path.basename(filePath)}, channel=${channelId}, thread=${threadTs}`);
     
     // バケットの存在確認
     const bucket = storage.bucket(bucketName);
@@ -27,9 +29,11 @@ exports.uploadFile = async (filePath) => {
       throw new Error(`バケットが存在しません: ${bucketName}`);
     }
     
-    // ファイル名衝突を避けるためにUUIDをプレフィックスとして使用
+    // ファイル名衝突を避けるためにUUIDを使用し、チャンネル/スレッド情報をパスに含める
+    // スレッドTSには '.' が含まれるため、ファイルシステムで安全な文字に置換 (例: '_')
+    const safeThreadTs = threadTs.replace(/\./g, '_');
     const fileExtension = path.extname(filePath);
-    const destFileName = `temp/${uuidv4()}${fileExtension}`;
+    const destFileName = `slack-processing/${channelId}-${safeThreadTs}/${uuidv4()}${fileExtension}`;
     
     // ファイルをアップロード
     await bucket.upload(filePath, {
