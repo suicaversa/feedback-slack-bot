@@ -78,19 +78,32 @@ exports.handleSlackEvent = async (req, res) => {
     
     // ファイルをダウンロード (チャンネルIDとスレッドIDを渡す)
     const localFilePath = await fileService.downloadFile(targetFile, channel, threadId);
-    
-    // コマンドに応じたAI処理 (チャンネルIDとスレッドIDを渡す)
-    const aiResult = await aiService.processMediaFile({
-      filePath: localFilePath,
-      fileType: targetFile.filetype,
-      command: command.action,
-      additionalContext: command.context,
-      channelId: channel,
-      threadTs: threadId
-    });
 
-    // ★ Geminiからの応答内容をログ出力
-    logger.info('Geminiからの応答(aiResult):\n', aiResult);
+    let aiResult;
+    // ★ コマンドに応じて処理を分岐
+    if (command.action === '松浦さんAIでフィードバック') {
+      logger.info('松浦さんAIコマンド受信 (現在未対応)');
+      aiResult = '「松浦さんAIでフィードバック」コマンドは現在準備中です。もうしばらくお待ちください。';
+    } else {
+      // デフォルトのフィードバック処理など
+      logger.info(`AI処理実行: command=${command.action}`);
+      aiResult = await aiService.processMediaFile({
+        filePath: localFilePath,
+        fileType: targetFile.filetype,
+        command: command.action, // 'フィードバック' または デフォルト
+        additionalContext: command.context,
+        channelId: channel,
+        threadTs: threadId
+      });
+    }
+
+    // ★ Geminiからの応答内容をログ出力 (aiResultが文字列の場合のみ)
+    if (typeof aiResult === 'string') {
+      logger.info('AIからの応答(aiResult):\n', aiResult);
+    } else {
+      logger.warn('aiResultが文字列でないため、ログ出力をスキップします。', { type: typeof aiResult });
+    }
+
 
     // ★ 固定メッセージを追加
     const footerMessage = `\n\n---\n*これはβ版のAIフィードバックです。*\nコマンドを指定しない場合、デフォルトのフィードバックが実行されます。\n特定のフィードバック（例：過去のフィードバックを学習したAI）が必要な場合は、「@営業クローンBOT 松浦さんAIでフィードバック」のようにコマンドを指定してください。`;
