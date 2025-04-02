@@ -92,13 +92,17 @@ exports.handleSlackEvent = async (req, res) => {
     // ★ Geminiからの応答内容をログ出力
     logger.info('Geminiからの応答(aiResult):\n', aiResult);
 
+    // ★ 固定メッセージを追加
+    const footerMessage = `\n\n---\n*これはβ版のAIフィードバックです。*\nコマンドを指定しない場合、デフォルトのフィードバックが実行されます。\n特定のフィードバック（例：過去のフィードバックを学習したAI）が必要な場合は、「@営業クローンBOT 松浦さんAIでフィードバック」のようにコマンドを指定してください。`;
+    const messageToSend = `✨ ${command.action}の結果:\n\n${aiResult}${footerMessage}`;
+
     // 結果を返信
     await slackService.postMessage({
       channel,
-      text: `✨ ${command.action}の結果:\n\n${aiResult}`,
+      text: messageToSend,
       thread_ts: threadId
     });
-    
+
     // 一時ファイルのクリーンアップ
     await fileService.cleanupTempFile(localFilePath);
     

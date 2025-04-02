@@ -11,50 +11,50 @@ exports.parseCommand = (text) => {
     // メンション部分を除去
     const mentionRegex = /<@[A-Z0-9]+>/;
     const cleanedText = text.replace(mentionRegex, '').trim();
-    
-    if (!cleanedText) {
-      return {
-        isValid: false,
-        action: null,
-        context: null
-      };
-    }
-    
-    // コマンドキーワード（複数パターンに対応）
+
+    // デフォルトコマンドを設定
+    const defaultAction = 'フィードバック';
+    let action = defaultAction;
+    let context = cleanedText; // デフォルトでは cleanedText 全体をコンテキストとする
+    let isValid = true; // 基本的にメンションがあれば有効とする
+
+    // コマンドキーワードを定義（現在はフィードバックのみ）
     const commands = {
-      '要約': ['要約', '要約して', 'サマリー', 'まとめて'],
-      '議事録': ['議事録', '議事録作成', '議事録を作成', 'minutes'],
-      '分析': ['分析', '分析して', '解析', 'analyze'],
-      'トランスクリプト': ['テキスト化', '文字起こし', 'トランスクリプト', '書き起こし']
+      'フィードバック': ['フィードバック', 'FB', 'fb'], // 必要に応じてキーワード追加
+      // '松浦さんAIでフィードバック': ['松浦さんAI', '松浦さん'] // 将来の拡張用例
     };
-    
-    // デフォルトコマンド（何も指定がない場合）
-    let action = '要約';
-    let isValid = true;
-    
-    // コマンドの判定
+
+    // メンションのみの場合の処理
+    if (!cleanedText) {
+      action = defaultAction;
+      context = null; // コンテキストなし
+      logger.info(`コマンド解析 (メンションのみ): action=${action}`);
+      return { isValid, action, context };
+    }
+
+    // コマンドの判定とコンテキスト抽出
+    let commandFound = false;
     for (const [cmd, keywords] of Object.entries(commands)) {
       for (const keyword of keywords) {
-        if (cleanedText.includes(keyword)) {
+        // キーワードがテキストの先頭または末尾、あるいはスペースで区切られているか確認
+        const regex = new RegExp(`(^|\\s)${keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}(\\s|$)`, 'i');
+        if (regex.test(cleanedText)) {
           action = cmd;
+          // マッチしたキーワードと前後の空白を除去してコンテキストを抽出
+          context = cleanedText.replace(regex, '$1$2').trim(); // マッチ部分を除去
+          commandFound = true;
           break;
         }
       }
+      if (commandFound) break;
     }
-    
-    // コマンド以外のコンテキスト部分を抽出
-    let context = cleanedText;
-    for (const [_, keywords] of Object.entries(commands)) {
-      for (const keyword of keywords) {
-        context = context.replace(keyword, '').trim();
-      }
+
+    // コマンドが見つからなかった場合、actionはデフォルトのまま、contextはcleanedTextのまま
+    if (!commandFound) {
+        action = defaultAction;
+        context = cleanedText; // キーワードが含まれていないので全体がコンテキスト
     }
-    
-    if (context === cleanedText) {
-      // キーワードが見つからなかった場合、全体をコンテキストとして扱う
-      context = cleanedText;
-    }
-    
+
     logger.info(`コマンド解析: action=${action}, context=${context || 'なし'}`);
     
     return {
