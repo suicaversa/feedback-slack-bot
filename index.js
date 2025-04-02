@@ -39,9 +39,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'サーバーエラーが発生しました' });
 });
 
-// サーバー起動
-app.listen(PORT, () => {
-  logger.info(`サーバーが起動しました: ポート ${PORT}`);
-});
+// サーバー起動部分は Functions Framework が担当するため削除
+// app.listen(PORT, () => {
+//   logger.info(`サーバーが起動しました: ポート ${PORT}`);
+// });
 
-module.exports = app;
+// Express アプリケーションインスタンスをエクスポート
+exports.slackBotFunction = app; // エクスポート名は何でも良いが、デプロイ時に指定する
