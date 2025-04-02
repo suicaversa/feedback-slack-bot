@@ -47,6 +47,8 @@ gcloud functions deploy "$FUNCTION_NAME" \
   --trigger-http \
   --allow-unauthenticated \
   --service-account="$SERVICE_ACCOUNT" \
+  --memory=1GiB \
+  --timeout=3600s \
   --set-env-vars="SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN,SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET,GCP_PROJECT_ID=$GCP_PROJECT_ID,GCS_BUCKET_NAME=$GCS_BUCKET_NAME,GEMINI_API_KEY=$GEMINI_API_KEY,LOG_LEVEL=${LOG_LEVEL:-info}"
 
 if [ $? -eq 0 ]; then
