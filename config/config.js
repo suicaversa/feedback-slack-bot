@@ -35,5 +35,5 @@ module.exports = {
   PORT: getEnv('PORT', false) || 8080,
   
   // API設定
-  GEMINI_API_KEY: getEnv('GEMINI_API_KEY', false),
+  GEMINI_API_KEY: getEnv('GEMINI_API_KEY', true), // 必須に変更
 };
