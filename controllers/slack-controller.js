@@ -89,6 +89,9 @@ exports.handleSlackEvent = async (req, res) => {
       threadTs: threadId
     });
 
+    // ★ Geminiからの応答内容をログ出力
+    logger.info('Geminiからの応答(aiResult):\n', aiResult);
+
     // 結果を返信
     await slackService.postMessage({
       channel,

@@ -130,3 +130,5 @@ public/build/
 slack-bot-files/
 *.wav
 *.jpg
+
+.DS_Store

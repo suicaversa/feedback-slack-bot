@@ -32,7 +32,7 @@ const vertexai = new VertexAI({
 // --- Gemini API モデル設定 ---
 // モデル名はサンプルスクリプトに合わせて変更
 const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash", // "gemini-1.5-pro-latest" やサンプルで使用されていた "gemini-1.5-pro-exp-03-25" など、利用可能なモデルを指定
+  model: "gemini-2.5-pro-exp-03-25", // "gemini-1.5-pro-latest" やサンプルで使用されていた "gemini-1.5-pro-exp-03-25" など、利用可能なモデルを指定
 });
 
 // 生成設定もサンプルスクリプトに合わせる (必要に応じて調整)
