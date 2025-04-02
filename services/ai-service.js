@@ -9,6 +9,9 @@ const path = require('path');
 // const storageService = require('./storage-service.js');
 const logger = require('../utils/logger.js');
 const config = require('../config/config.js');
+// Strategy を読み込む
+const DefaultFeedbackStrategy = require('./ai-strategies/default-feedback-strategy.js');
+const MatsuuraFeedbackStrategy = require('./ai-strategies/matsuura-feedback-strategy.js');
 
 // Gemini API クライアントの初期化
 // TODO: config.js で GEMINI_API_KEY を必須にするか検討
@@ -96,6 +99,25 @@ async function waitForFilesActive(files) {
 }
 // --- ここまでヘルパー関数 ---
 
+
+/**
+ * コマンドに基づいて適切なAI処理戦略を選択する
+ * @param {string} commandAction - 解析されたコマンドアクション
+ * @returns {Object} - 選択された戦略オブジェクト
+ */
+function selectStrategy(commandAction) {
+  switch (commandAction) {
+    case '松浦さんAIでフィードバック':
+      logger.info('Selecting Matsuura AI Feedback Strategy.');
+      return MatsuuraFeedbackStrategy;
+    case 'フィードバック': // デフォルト含む
+    default:
+      logger.info('Selecting Default Feedback Strategy.');
+      return DefaultFeedbackStrategy;
+  }
+}
+
+
 /**
  * メディアファイルを処理する
  * @param {Object} options - 処理オプション
@@ -115,71 +137,57 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
   }
 
   try {
-    // 1. ファイルを Gemini API にアップロード
-    // TODO: mimeType を fileType から正確に判定するロジックを追加 (mime-types ライブラリなど)
-    // 例: const mimeType = require('mime-types').lookup(fileType) || 'application/octet-stream';
+    // 1. コマンドに基づいて戦略を選択
+    const strategy = selectStrategy(command);
+
+    // 2. ファイルを Gemini API にアップロード (戦略に応じてアップロードするファイルを変える)
+    let filesToUploadConfig;
     let detectedMimeType = 'application/octet-stream'; // デフォルト
+
+    // MimeType 判定 (共通処理)
+    // TODO: mime-types ライブラリを使うなど、より堅牢な判定方法を検討
     if (isAudioFile(fileType)) {
-      // Common audio types - refine as needed
       if (fileType === 'mp3') detectedMimeType = 'audio/mpeg';
       else if (fileType === 'wav') detectedMimeType = 'audio/wav';
       else if (fileType === 'm4a') detectedMimeType = 'audio/mp4'; // M4A often uses mp4 container
       else if (fileType === 'ogg') detectedMimeType = 'audio/ogg';
       else if (fileType === 'flac') detectedMimeType = 'audio/flac';
-      else detectedMimeType = `audio/${fileType}`; // Fallback
+      else detectedMimeType = `audio/${fileType}`;
     } else if (isVideoFile(fileType)) {
-       // Common video types - refine as needed
       if (fileType === 'mp4') detectedMimeType = 'video/mp4';
       else if (fileType === 'mov') detectedMimeType = 'video/quicktime';
       else if (fileType === 'avi') detectedMimeType = 'video/x-msvideo';
       else if (fileType === 'webm') detectedMimeType = 'video/webm';
       else if (fileType === 'mkv') detectedMimeType = 'video/x-matroska';
-      else detectedMimeType = `video/${fileType}`; // Fallback
+      else detectedMimeType = `video/${fileType}`;
     }
-     logger.info(`Detected MimeType: ${detectedMimeType} for fileType: ${fileType}`);
+    logger.info(`Detected MimeType: ${detectedMimeType} for fileType: ${fileType}`);
 
+    // 戦略に応じてアップロードするファイルを決定
+    if (command === '松浦さんAIでフィードバック') {
+      filesToUploadConfig = [
+        { path: filePath, mimeType: detectedMimeType }, // メディアファイルのみ
+      ];
+    } else {
+      filesToUploadConfig = [
+        { path: "assets/how_to_evaluate.pdf", mimeType: "application/pdf" },
+        { path: "assets/how_to_sales.pdf", mimeType: "application/pdf" },
+        { path: filePath, mimeType: detectedMimeType }, // ドキュメント + メディアファイル
+      ];
+    }
 
-    const filesToUpload = [
-      // ドキュメントファイル (パスは固定)
-      { path: "assets/how_to_evaluate.pdf", mimeType: "application/pdf" },
-      { path: "assets/how_to_sales.pdf", mimeType: "application/pdf" },
-      // Slackからダウンロードしたファイル
-      { path: filePath, mimeType: detectedMimeType },
-    ];
-
+    // ファイルアップロード実行 (共通処理)
     const uploadedFiles = await Promise.all(
-        filesToUpload.map(file => uploadToGemini(file.path, file.mimeType))
+        filesToUploadConfig.map(file => uploadToGemini(file.path, file.mimeType))
     );
 
-    // 2. ファイル処理待機
+    // 3. ファイル処理待機 (共通処理)
     await waitForFilesActive(uploadedFiles);
 
-    // 3. プロンプト準備 (サンプルスクリプトから流用)
-    //    uploadedFiles 配列のインデックスに注意
-    const promptParts = [
-      { // ドキュメント1
-        fileData: {
-          mimeType: uploadedFiles[0].mimeType,
-          fileUri: uploadedFiles[0].uri,
-        },
-      },
-      { // ドキュメント2
-        fileData: {
-          mimeType: uploadedFiles[1].mimeType,
-          fileUri: uploadedFiles[1].uri,
-        },
-      },
-      { // Slackからのファイル (音声/動画)
-        fileData: {
-          mimeType: uploadedFiles[2].mimeType,
-          fileUri: uploadedFiles[2].uri,
-        },
-      },
-      // 指示プロンプト (ファイルから読み込み)
-      { text: fs.readFileSync(path.join(__dirname, '../prompts/main_prompt.txt'), 'utf-8') },
-    ];
+    // 4. プロンプト準備 (戦略に委譲)
+    const promptParts = strategy.preparePromptParts(uploadedFiles, additionalContext);
 
-    // 4. Gemini API 呼び出し (startChatではなくgenerateContentを使用する方がシンプルかもしれない)
+    // 5. Gemini API 呼び出し (共通処理)
     logger.info('Generating content with Gemini API...');
     // const chatSession = model.startChat({ // サンプルのstartChatを使う場合
     //   generationConfig,
@@ -200,7 +208,7 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     // const candidates = response.candidates;
     // ... (ファイル書き出し部分) ...
 
-    // 5. 結果テキストを返す
+    // 6. 結果テキストを返す (共通処理)
     // エラーハンドリング: candidatesがない、または空の場合など
     if (!response.candidates || response.candidates.length === 0 || !response.candidates[0].content || !response.candidates[0].content.parts || response.candidates[0].content.parts.length === 0) {
         logger.error('Gemini API response is empty or invalid.', { response });
@@ -210,7 +218,7 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     const responseText = response.candidates[0].content.parts[0].text;
     logger.info(`Gemini Result Text (first 100 chars): ${responseText.substring(0,100)}...`);
 
-    // 6. アップロードしたファイルを削除 (クリーンアップ)
+    // 7. アップロードしたファイルを削除 (クリーンアップ) (共通処理)
     //    waitForFilesActiveの後、かつ結果取得後に実行
     logger.info('Deleting uploaded files from Gemini API...');
     await Promise.all(

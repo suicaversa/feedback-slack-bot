@@ -79,23 +79,16 @@ exports.handleSlackEvent = async (req, res) => {
     // ファイルをダウンロード (チャンネルIDとスレッドIDを渡す)
     const localFilePath = await fileService.downloadFile(targetFile, channel, threadId);
 
-    let aiResult;
-    // ★ コマンドに応じて処理を分岐
-    if (command.action === '松浦さんAIでフィードバック') {
-      logger.info('松浦さんAIコマンド受信 (現在未対応)');
-      aiResult = '「松浦さんAIでフィードバック」コマンドは現在準備中です。もうしばらくお待ちください。';
-    } else {
-      // デフォルトのフィードバック処理など
-      logger.info(`AI処理実行: command=${command.action}`);
-      aiResult = await aiService.processMediaFile({
-        filePath: localFilePath,
-        fileType: targetFile.filetype,
-        command: command.action, // 'フィードバック' または デフォルト
-        additionalContext: command.context,
-        channelId: channel,
-        threadTs: threadId
-      });
-    }
+    // コマンドに応じたAI処理 (チャンネルIDとスレッドIDを渡す)
+    // ai-service側でコマンドに応じた処理を行うようになったため、分岐を削除
+    const aiResult = await aiService.processMediaFile({
+      filePath: localFilePath,
+      fileType: targetFile.filetype,
+      command: command.action,
+      additionalContext: command.context,
+      channelId: channel,
+      threadTs: threadId
+    });
 
     // ★ Geminiからの応答内容をログ出力 (aiResultが文字列の場合のみ)
     if (typeof aiResult === 'string') {
