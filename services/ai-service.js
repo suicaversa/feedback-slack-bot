@@ -233,8 +233,16 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     return responseText;
 
   } catch (error) {
-    logger.error(`AI処理中にエラーが発生しました: ${error.message}`, { error });
-    // エラーオブジェクトに詳細が含まれているか確認
+    // エラーメッセージに加えて、エラーオブジェクト全体をログに出力する
+    // JSON.stringify を使うことで、ネストされた情報も確認しやすくなる可能性がある
+    // 第3引数に 2 を指定して整形する
+    logger.error(`AI処理中にエラーが発生しました: ${error.message}`, {
+      errorMessage: error.message,
+      errorStack: error.stack, // スタックトレースを追加
+      errorCause: error.cause, // fetchエラーの場合、causeに詳細が含まれることがある
+      errorObject: JSON.stringify(error, Object.getOwnPropertyNames(error), 2) // エラーオブジェクトの全プロパティを文字列化
+    });
+    // error.errorDetails は Google API エラーでよく使われるプロパティなので残しておく
     if (error.errorDetails) {
       logger.error('Gemini API Error Details:', error.errorDetails);
     }
