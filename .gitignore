@@ -132,3 +132,4 @@ slack-bot-files/
 *.jpg
 
 .DS_Store
+.envrc
