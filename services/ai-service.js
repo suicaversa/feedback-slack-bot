@@ -3,7 +3,7 @@
 // const { VertexAI } = require('@google-cloud/vertexai');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { GoogleAIFileManager } = require("@google/generative-ai/server");
-const fs = require('fs');
+const fs = require('fs'); // ファイルサイズ取得に必要
 const path = require('path');
 // storageService は Gemini API ファイルアップロードを使うため不要になる可能性あり
 // const storageService = require('./storage-service.js');
@@ -32,21 +32,7 @@ const vertexai = new VertexAI({
 });
 */
 
-// --- Gemini API モデル設定 ---
-// モデル名はサンプルスクリプトに合わせて変更
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-pro-exp-03-25", // "gemini-1.5-pro-latest" やサンプルで使用されていた "gemini-1.5-pro-exp-03-25" など、利用可能なモデルを指定
-});
-
-// 生成設定もサンプルスクリプトに合わせる (必要に応じて調整)
-const generationConfig = {
-  temperature: 1,
-  topP: 0.95,
-  topK: 64,
-  maxOutputTokens: 8192, // サンプルより少し減らす場合など調整
-  responseMimeType: "text/plain",
-};
-// --- ここまで Gemini API モデル設定 ---
+// --- モデルと生成設定は processMediaFile 内で動的に決定 ---
 
 // --- ヘルパー関数 (サンプルスクリプトから移植) ---
 /**
@@ -72,7 +58,7 @@ async function waitForFilesActive(files) {
     process.stdout.write(`  - ${name}: `);
     let file = await fileManager.getFile(name);
     let retries = 0;
-    const maxRetries = 6; // 約1分待機
+    const maxRetries = 180; // 約30分待機 (10秒 * 180回 = 1800秒)
     while (file.state === "PROCESSING" && retries < maxRetries) {
       process.stdout.write(".");
       await new Promise((resolve) => setTimeout(resolve, 10_000)); // 10秒待機
@@ -137,6 +123,28 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
   }
 
   try {
+    // ファイルサイズを取得 (MB)
+    const stats = fs.statSync(filePath);
+    const fileSizeInBytes = stats.size;
+    const fileSizeInMegabytes = fileSizeInBytes / (1024 * 1024);
+    logger.info(`File size: ${fileSizeInMegabytes.toFixed(2)} MB`);
+
+    // ファイルサイズに基づいてモデル名を決定
+    const modelName = fileSizeInMegabytes > 50 ? 'gemini-1.5-pro-latest' : 'gemini-2.5-pro-exp-03-25';
+    logger.info(`Selected model based on file size: ${modelName}`);
+
+    // モデルインスタンスを取得
+    const model = genAI.getGenerativeModel({ model: modelName });
+
+    // 生成設定 (ここに関数スコープで定義)
+    const generationConfig = {
+      temperature: 1,
+      topP: 0.95,
+      topK: 64,
+      maxOutputTokens: 8192,
+      responseMimeType: "text/plain",
+    };
+
     // 1. コマンドに基づいて戦略を選択
     const strategy = selectStrategy(command);
 
@@ -218,6 +226,10 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     const responseText = response.candidates[0].content.parts[0].text;
     logger.info(`Gemini Result Text (first 100 chars): ${responseText.substring(0,100)}...`);
 
+    // 使用したモデル名をデバッグ情報として末尾に追加
+    const debugMessage = `\n\n\`\`\`\nDebug: Used model: ${modelName}\n\`\`\``;
+    const finalResponseText = responseText + debugMessage;
+
     // 7. アップロードしたファイルを削除 (クリーンアップ) (共通処理)
     //    waitForFilesActiveの後、かつ結果取得後に実行
     logger.info('Deleting uploaded files from Gemini API...');
@@ -230,7 +242,7 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     logger.info('Uploaded files deleted.');
 
 
-    return responseText;
+    return finalResponseText; // 変更: デバッグメッセージ付きのテキストを返す
 
   } catch (error) {
     // エラーメッセージに加えて、エラーオブジェクト全体をログに出力する
