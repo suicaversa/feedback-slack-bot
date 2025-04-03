@@ -133,3 +133,4 @@ slack-bot-files/
 
 .DS_Store
 .envrc
+tmp
