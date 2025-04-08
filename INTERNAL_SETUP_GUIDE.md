@@ -29,7 +29,7 @@
       background_color: "#2F4F4F"
     features:
       bot_user:
-        display_name: 営業クローンBOT # 必要に応じて変更してください
+        display_name: sales-clone-bot # 必要に応じて変更してください
         always_online: false
     oauth_config:
       scopes:
@@ -42,7 +42,7 @@
           - channels:join    # チャンネル参加に必要
     settings:
       event_subscriptions:
-        request_url: https://asia-northeast1-opt-hanro-baieki-455601.cloudfunctions.net/slack-feedback-bot/api/slack/events # ★後ほどエンジニアから提供されるURLに置き換えます★
+        request_url: https://asia-northeast1-hanro-baieki-project.cloudfunctions.net/slack-feedback-bot/api/slack/events
         bot_events:
           - app_mention
       interactivity:
@@ -64,11 +64,11 @@
 
 ## 4. Request URLの設定 (エンジニアからの情報提供後)
 
-Bot開発担当者がアプリケーションをデプロイし、設定を完了すると、**Request URL** (`https://asia-northeast1-opt-hanro-baieki-455601.cloudfunctions.net/slack-feedback-bot/api/slack/events`) が提供されます。以下の手順でSlack Appに設定してください。
+Bot開発担当者がアプリケーションをデプロイし、設定を完了すると、**Request URL** (`https://asia-northeast1-hanro-baieki-project.cloudfunctions.net/slack-feedback-bot/api/slack/events`) が提供されます。以下の手順でSlack Appに設定してください。
 
 1.  **Slack APIサイトへアクセス:** 再度 [https://api.slack.com/apps](https://api.slack.com/apps) で作成したAppの設定画面を開きます。
 2.  **Event Subscriptionsを開く:** 左側のメニューから "Features" > "**Event Subscriptions**" を選択します。
-3.  **Request URLを入力:** "Enable Events" が ON になっていることを確認し、"Request URL" の欄に、**Bot開発担当者から提供されたURL (`https://asia-northeast1-opt-hanro-baieki-455601.cloudfunctions.net/slack-feedback-bot/api/slack/events`)** を入力します。
+3.  **Request URLを入力:** "Enable Events" が ON になっていることを確認し、"Request URL" の欄に、**Bot開発担当者から提供されたURL (`https://asia-northeast1-hanro-baieki-project.cloudfunctions.net/slack-feedback-bot/api/slack/events`)** を入力します。
 4.  **検証を確認:** URLを入力すると、Slackが検証リクエストを送信します。Botアプリケーションが正しく起動していれば、"Verified" と緑色のチェックマークが表示されます。表示されない場合は、開発担当者に連絡してください。
 5.  **変更を保存:** 画面右下の "Save Changes" をクリックします。
 

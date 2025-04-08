@@ -7,7 +7,8 @@ FUNCTION_NAME="slack-feedback-bot" # デプロイする関数名
 REGION="asia-northeast1"          # デプロイするリージョン
 RUNTIME="nodejs20"                # 使用するNode.jsランタイム
 ENTRY_POINT="slackBotFunction"    # index.jsでエクスポートした関数名
-SERVICE_ACCOUNT="slack-bot-sa@opt-hanro-baieki-455601.iam.gserviceaccount.com" # 実行サービスアカウント (更新済み)
+# SERVICE_ACCOUNT="slack-bot-sa@opt-hanro-baieki-455601.iam.gserviceaccount.com" # 実行サービスアカウント (更新済み)
+SERVICE_ACCOUNT=$SERVICE_ACCOUNT_EMAIL
 # --- 設定項目ここまで ---
 
 # --- 環境変数のチェック ---
