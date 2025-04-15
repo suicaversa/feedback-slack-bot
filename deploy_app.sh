@@ -1,69 +1,53 @@
 #!/bin/bash
 set -e # エラーが発生したらスクリプトを停止
 
-# --- 設定値 (環境変数から取得) ---
-# GCPプロジェクトID
-GCP_PROJECT_ID="${GCP_PROJECT_ID:?GCP_PROJECT_ID environment variable is not set}"
-# リージョン (環境変数から取得, 例: asia-northeast1)
-REGION="${REGION:?REGION environment variable is not set}"
-# Cloud Run Job名 (環境変数から取得, 例: slack-bot-processor)
-JOB_NAME="${JOB_NAME:?JOB_NAME environment variable is not set}"
-# Cloud Functions名 (環境変数から取得, 例: slack-bot-handler)
-FUNCTION_NAME="${FUNCTION_NAME:?FUNCTION_NAME environment variable is not set}"
-# Cloud Run Job用サービスアカウント名 (環境変数から取得)
-JOB_SERVICE_ACCOUNT_NAME="${JOB_SERVICE_ACCOUNT_NAME:?JOB_SERVICE_ACCOUNT_NAME environment variable is not set}"
-# Cloud Functions用サービスアカウントのメールアドレス (環境変数から取得)
-FUNCTION_SERVICE_ACCOUNT_EMAIL="${FUNCTION_SERVICE_ACCOUNT_EMAIL:?FUNCTION_SERVICE_ACCOUNT_EMAIL environment variable is not set}"
-# Artifact Registry リポジトリ名 (環境変数から取得, 例: docker-repo)
-ARTIFACT_REPO_NAME="${ARTIFACT_REPO_NAME:?ARTIFACT_REPO_NAME environment variable is not set}"
-# Cloud Run Job用Dockerイメージ名 (環境変数から取得, 例: slack-bot-job)
-JOB_IMAGE_NAME="${JOB_IMAGE_NAME:?JOB_IMAGE_NAME environment variable is not set}"
-# (オプション) Slack Bot Tokenを保存するSecret ManagerのシークレットID (環境変数から取得)
-SLACK_BOT_TOKEN_SECRET_ID="${SLACK_BOT_TOKEN_SECRET_ID}"
-# (オプション) Slack Signing Secretを保存するSecret ManagerのシークレットID (例: slack-signing-secret)
-SLACK_SIGNING_SECRET_ID="${SLACK_SIGNING_SECRET_ID}"
+echo "--- Starting full application deployment ---"
 
-# --- 実行 ---
+# スクリプトが存在するディレクトリを取得
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# --- 環境変数の読み込み (チェックで必要) ---
+# .envrc が存在すれば読み込む (direnv がなくても動作するように)
+if [[ -f "${SCRIPT_DIR}/.envrc" ]]; then
+  echo "Loading environment variables from .envrc..."
+  # export を削除し、eval で現在のシェルに設定
+  eval "$(grep '^export ' "${SCRIPT_DIR}/.envrc" | sed 's/export //')"
+else
+    echo "Warning: .envrc not found. Assuming environment variables are set."
+fi
+
+# --- 必要な変数の存在確認 (deploy_job/function 内のチェックを一部ここでも行う) ---
+: "${GCP_PROJECT_ID:?GCP_PROJECT_ID environment variable is not set}"
+: "${REGION:?REGION environment variable is not set}"
+: "${JOB_NAME:?JOB_NAME environment variable is not set}"
+: "${FUNCTION_NAME:?FUNCTION_NAME environment variable is not set}"
+: "${JOB_SERVICE_ACCOUNT_NAME:?JOB_SERVICE_ACCOUNT_NAME environment variable is not set}"
+: "${FUNCTION_SERVICE_ACCOUNT_EMAIL:?FUNCTION_SERVICE_ACCOUNT_EMAIL environment variable is not set}"
+# 他の変数は個別のスクリプト内でチェックされる
+
+# --- 権限チェック ---
 JOB_SERVICE_ACCOUNT_EMAIL="${JOB_SERVICE_ACCOUNT_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
-JOB_IMAGE_URL="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPO_NAME}/${JOB_IMAGE_NAME}:latest"
 
-echo "--- Building and Pushing Job Docker Image: ${JOB_IMAGE_URL} ---"
-# Use cloudbuild.yaml to specify the Dockerfile location
-gcloud builds submit --config=cloudbuild.yaml --substitutions=_TAG="${JOB_IMAGE_URL}" --project="${GCP_PROJECT_ID}" .
+echo ""
+echo "--- Checking IAM permissions for Job deployment ---"
+bash "${SCRIPT_DIR}/check_permissions.sh" "${JOB_SERVICE_ACCOUNT_EMAIL}" "roles/run.admin" "roles/cloudbuild.builds.editor"
 
-echo "--- Deploying Cloud Run Job: ${JOB_NAME} ---"
-# 環境変数の設定を組み立てる (job/index.js が必要とする変数を .envrc から渡す)
-JOB_ENV_VARS="GCP_PROJECT_ID=${GCP_PROJECT_ID},SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN},GCS_BUCKET_NAME=${GCS_BUCKET_NAME},GEMINI_API_KEY=${GEMINI_API_KEY},SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}"
+echo ""
+echo "--- Checking IAM permissions for Function deployment ---"
+bash "${SCRIPT_DIR}/check_permissions.sh" "${FUNCTION_SERVICE_ACCOUNT_EMAIL}" "roles/run.admin"
+echo ""
 
-# gcloud run jobs deploy を使う (存在しない場合は作成、存在する場合は更新)
-gcloud run jobs deploy "${JOB_NAME}" \
-  --project="${GCP_PROJECT_ID}" \
-  --region="${REGION}" \
-  --image="${JOB_IMAGE_URL}" \
-  --service-account="${JOB_SERVICE_ACCOUNT_EMAIL}" \
-  --update-env-vars="${JOB_ENV_VARS}" \
-  --task-timeout=1800s \
-  --tasks=1 \
-  --max-retries=1
+# --- デプロイ実行 ---
 
-echo "--- Deploying Cloud Function: ${FUNCTION_NAME} ---"
-# 環境変数の設定を組み立てる
-# SLACK_SIGNING_SECRET は Secret Manager から取得する想定だが、.envrc に直接書かれているため、
-# ここでは環境変数として渡す。（本来は Secret Manager 経由が望ましい）
-# config/config.js で必須とされている環境変数をすべて含める
-FUNCTION_ENV_VARS="GCP_PROJECT_ID=${GCP_PROJECT_ID},CLOUD_RUN_JOB_NAME=${JOB_NAME},CLOUD_RUN_JOB_REGION=${REGION},SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN},SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET},GCS_BUCKET_NAME=${GCS_BUCKET_NAME},GEMINI_API_KEY=${GEMINI_API_KEY}"
+# Jobのデプロイを実行
+echo ""
+echo "--- Running Job Deployment Script ---"
+bash "${SCRIPT_DIR}/deploy_job.sh"
 
-gcloud functions deploy "${FUNCTION_NAME}" \
-  --project="${GCP_PROJECT_ID}" \
-  --region="${REGION}" \
-  --gen2 \
-  --runtime=nodejs20 \
-  --trigger-http \
-  --entry-point=slackBotFunction \
-  --source=. \
-  --service-account="${FUNCTION_SERVICE_ACCOUNT_EMAIL}" \
-  --update-env-vars="${FUNCTION_ENV_VARS}" \
-  --allow-unauthenticated
+# Functionのデプロイを実行
+echo ""
+echo "--- Running Function Deployment Script ---"
+bash "${SCRIPT_DIR}/deploy_function.sh"
 
-echo "--- Application deployment script completed. ---"
+echo ""
+echo "--- Full application deployment script completed. ---"
