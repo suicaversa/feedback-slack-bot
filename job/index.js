@@ -18,8 +18,9 @@ const channelId = process.env.SLACK_CHANNEL_ID;
 const threadTs = process.env.SLACK_THREAD_TS;
 const commandAction = process.env.SLACK_COMMAND_ACTION;
 const commandContext = process.env.SLACK_COMMAND_CONTEXT;
-const targetFileUrl = process.env.TARGET_FILE_URL;
-const targetFileType = process.env.TARGET_FILE_TYPE;
+// const targetFileUrl = process.env.TARGET_FILE_URL; // Functionから渡されなくなったため削除
+// const targetFileType = process.env.TARGET_FILE_TYPE; // Functionから渡されなくなったため削除
+const slackEventJson = process.env.SLACK_EVENT_JSON; // ★ Functionから渡されるEvent JSON
 const slackBotToken = process.env.SLACK_BOT_TOKEN; // Jobの環境変数 or Secret Managerから取得
 
 // メイン処理関数
@@ -27,13 +28,13 @@ async function main() {
   logger.info(`Cloud Run Job開始: Task ${taskIndex}, Attempt ${attemptIndex}`, { channelId, threadTs });
 
   // --- パラメータチェック ---
-  if (!channelId || !threadTs || !commandAction || !targetFileUrl || !targetFileType || !slackBotToken) {
+  // ★ targetFileUrl, targetFileType の代わりに slackEventJson をチェック
+  if (!channelId || !threadTs || !commandAction || !slackEventJson || !slackBotToken) {
     logger.error('必要な環境変数が不足しています。', {
       channelId: !!channelId,
       threadTs: !!threadTs,
       commandAction: !!commandAction,
-      targetFileUrl: !!targetFileUrl,
-      targetFileType: !!targetFileType,
+      slackEventJson: !!slackEventJson, // ★ チェック対象変更
       slackBotToken: !!slackBotToken
     });
     // ここで処理を中断すべき。Cloud Run Jobは失敗として終了する。
@@ -41,8 +42,17 @@ async function main() {
   }
 
   let localFilePath = null; // finallyで使うため外で宣言
+  let event; // ★ eventオブジェクトを格納する変数
 
   try {
+    // ★ Event JSONをパース
+    try {
+      event = JSON.parse(slackEventJson);
+    } catch (parseError) {
+      logger.error('SLACK_EVENT_JSON のパースに失敗しました。', { error: parseError, json: slackEventJson });
+      throw new Error('Slackイベントデータの形式が不正です。');
+    }
+
     // --- 処理開始を通知 ---
     await slackService.postMessage({
       channel: channelId,
@@ -50,23 +60,47 @@ async function main() {
       thread_ts: threadTs
     });
 
+    // --- スレッド内のファイル取得 ---
+    logger.info('スレッド内のファイルを取得します。', { channelId, threadId: threadTs });
+    const files = await slackService.getFilesInThread(channelId, threadTs);
+    if (!files || files.length === 0) {
+      // Function側でチェックしなくなったのでJob側でエラーハンドリング
+      logger.warn('処理対象のファイルが見つかりません。', { channelId, threadId: threadTs });
+      await slackService.postMessage({
+        channel: channelId,
+        text: '❌ このスレッドに処理対象のファイルが見つかりません。音声または動画ファイルをアップロードしてください。',
+        thread_ts: threadTs
+      });
+      return; // Jobは正常終了とする（エラーではないため）
+    }
+
+    // --- 対象ファイルを特定 ---
+    logger.info('ダウンロード対象のファイルを特定します。');
+    const targetFile = fileService.findTargetMediaFile(files);
+    if (!targetFile) {
+      // Function側でチェックしなくなったのでJob側でエラーハンドリング
+      logger.warn('対応する音声または動画ファイルが見つかりません。', { channelId, threadId: threadTs });
+      await slackService.postMessage({
+        channel: channelId,
+        text: '❌ 対応する音声または動画ファイルが見つかりません。',
+        thread_ts: threadTs
+      });
+      return; // Jobは正常終了とする（エラーではないため）
+    }
+    logger.info('対象ファイルを特定しました。', { fileId: targetFile.id, fileName: targetFile.name });
+
+
     // --- ファイルダウンロード ---
-    logger.info('ファイルのダウンロードを開始します。', { url: targetFileUrl });
-    // downloadFileはファイル情報オブジェクトを引数に取る想定だったため、URLとタイプから簡易オブジェクトを作成
-    const pseudoTargetFile = {
-        url_private_download: targetFileUrl,
-        filetype: targetFileType,
-        // downloadFile内でnameが必要ならuuid等で生成するか、Functionから渡す
-        name: `downloaded_file_${Date.now()}` // 仮の名前
-    };
-    localFilePath = await fileService.downloadFile(pseudoTargetFile, channelId, threadTs); // channelId, threadTsはログ用
+    logger.info('ファイルのダウンロードを開始します。', { url: targetFile.url_private_download });
+    // ★ downloadFileには取得した targetFile オブジェクトを渡す
+    localFilePath = await fileService.downloadFile(targetFile, channelId, threadTs); // channelId, threadTsはログ用
     logger.info(`ファイルのダウンロード完了: ${localFilePath}`);
 
     // --- AI処理 ---
     logger.info('AI処理を開始します。', { command: commandAction });
     const aiResult = await aiService.processMediaFile({
       filePath: localFilePath,
-      fileType: targetFileType,
+      fileType: targetFile.filetype, // ★ targetFileから取得
       command: commandAction,
       additionalContext: commandContext,
       channelId: channelId, // ログや内部処理で使う可能性

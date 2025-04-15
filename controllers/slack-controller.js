@@ -62,30 +62,8 @@ exports.handleSlackEvent = async (req, res) => {
       return;
     }
 
-    // スレッド内のファイルを取得
-    const files = await slackService.getFilesInThread(channel, threadId);
-
-    if (!files || files.length === 0) {
-      await slackService.postMessage({
-        channel,
-        text: '❌ このスレッドに処理対象のファイルが見つかりません。音声または動画ファイルをアップロードしてください。',
-        thread_ts: threadId
-      });
-      return;
-    }
-
-    // 対象ファイルを特定（最新の音声/動画ファイル）
-    const targetFile = fileService.findTargetMediaFile(files);
-    if (!targetFile) {
-      await slackService.postMessage({
-        channel,
-        text: '❌ 対応する音声または動画ファイルが見つかりません。',
-        thread_ts: threadId
-      });
-      return;
-    }
-
-    // --- ここから下の処理をJob起動に置き換え ---
+    // --- Job起動 ---
+    // ファイル取得・特定ロジックはJob側に移動したため削除
 
     // ★ Cloud Run Job を起動する
     logger.info(`Cloud Run Job (${jobName}) の起動を開始します。`, { channel, threadId });
@@ -98,13 +76,12 @@ exports.handleSlackEvent = async (req, res) => {
         containerOverrides: [
           {
             env: [ // Jobに渡すパラメータを環境変数として設定
-              { name: 'SLACK_CHANNEL_ID', value: channel },
-              { name: 'SLACK_THREAD_TS', value: threadId },
-              { name: 'SLACK_COMMAND_ACTION', value: command.action },
+              { name: 'SLACK_CHANNEL_ID', value: channel }, // channelは引き続き渡す
+              { name: 'SLACK_THREAD_TS', value: threadId }, // threadIdは引き続き渡す
+              { name: 'SLACK_COMMAND_ACTION', value: command.action }, // commandも渡す
               { name: 'SLACK_COMMAND_CONTEXT', value: command.context || '' },
-              { name: 'TARGET_FILE_URL', value: targetFile.url_private_download },
-              { name: 'TARGET_FILE_TYPE', value: targetFile.filetype },
-              // SLACK_BOT_TOKEN は Job 側の環境変数 or Secret Manager で設定する想定
+              { name: 'SLACK_EVENT_JSON', value: JSON.stringify(event) }, // ★ Slack Event全体をJSON文字列で渡す
+              // SLACK_BOT_TOKEN は Job 側の環境変数で設定済み
             ],
           },
         ],
