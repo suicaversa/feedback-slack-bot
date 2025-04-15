@@ -109,7 +109,7 @@ exports.handleSlackEvent = async (req, res) => {
           },
         ],
         taskCount: 1, // 実行するタスク数
-        timeout: '3600s', // Job のタイムアウト (例: 1時間)
+        // timeout: '3600s', // Job のタイムアウトはデプロイ時に設定するため、ここでのオーバーライドは削除
       },
     };
 

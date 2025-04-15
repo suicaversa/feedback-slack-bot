@@ -1,0 +1,24 @@
+steps:
+  # Dockerイメージをビルドするステップ
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        # '--tag' または '-t': ビルドするイメージのタグを指定
+        '-t',
+        '${_TAG}', # タグは置換変数として渡す
+        # '--file' または '-f': 使用するDockerfileのパスを指定
+        '-f',
+        'job/Dockerfile', # jobディレクトリ内のDockerfileを指定
+        # ビルドコンテキストのパス (カレントディレクトリ)
+        '.',
+      ]
+# ビルド後にプッシュするイメージを指定
+images:
+  - '${_TAG}'
+# 置換変数 (gcloudコマンドから渡す)
+substitutions:
+  _TAG: 'DEFAULT_TAG_SHOULD_BE_OVERRIDDEN' # デフォルト値 (コマンド実行時に上書きされる)
+
+# オプション: ビルドのタイムアウト設定 (例: 20分)
+timeout: 1200s
