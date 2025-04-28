@@ -21,20 +21,13 @@ fi
 : "${REGION:?REGION environment variable is not set}"
 : "${JOB_NAME:?JOB_NAME environment variable is not set}"
 : "${FUNCTION_NAME:?FUNCTION_NAME environment variable is not set}"
-: "${JOB_SERVICE_ACCOUNT_NAME:?JOB_SERVICE_ACCOUNT_NAME environment variable is not set}"
 : "${FUNCTION_SERVICE_ACCOUNT_EMAIL:?FUNCTION_SERVICE_ACCOUNT_EMAIL environment variable is not set}"
 # 他の変数は個別のスクリプト内でチェックされる
 
-# --- 権限チェック ---
-JOB_SERVICE_ACCOUNT_EMAIL="${JOB_SERVICE_ACCOUNT_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
-
 echo ""
-echo "--- Checking IAM permissions for Job deployment ---"
-bash "${SCRIPT_DIR}/check_permissions.sh" "${JOB_SERVICE_ACCOUNT_EMAIL}" "roles/run.admin" "roles/cloudbuild.builds.editor"
-
-echo ""
-echo "--- Checking IAM permissions for Function deployment ---"
-bash "${SCRIPT_DIR}/check_permissions.sh" "${FUNCTION_SERVICE_ACCOUNT_EMAIL}" "roles/run.admin"
+echo "--- Checking IAM permissions for deployment (using common SA: ${FUNCTION_SERVICE_ACCOUNT_EMAIL}) ---"
+# JobとFunctionに必要なロールをまとめてチェック
+bash "${SCRIPT_DIR}/check_permissions.sh" "${FUNCTION_SERVICE_ACCOUNT_EMAIL}" "roles/run.admin" "roles/cloudbuild.builds.editor"
 echo ""
 
 # --- デプロイ実行 ---
