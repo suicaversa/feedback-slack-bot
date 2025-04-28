@@ -44,7 +44,7 @@ async function main() {
   }
 
   let localFilePath = null; // finallyで使うため外で宣言
-  let createdSegmentPaths = []; // 切り抜きサービスが返したパスを保持 (finallyで使う)
+  // let createdSegmentPaths = []; // 不要になったため削除
   let event; // ★ eventオブジェクトを格納する変数
 
   try {
@@ -99,26 +99,29 @@ async function main() {
     localFilePath = await fileService.downloadFile(targetFile, channelId, threadTs); // channelId, threadTsはログ用
     logger.info(`ファイルのダウンロード完了: ${localFilePath}`);
 
-    // --- 処理分岐: "切り抜き"キーワードの有無 ---
-    if (commandContext && commandContext.includes('切り抜き')) {
-        logger.info('「切り抜き」コマンドを検出しました。メディア切り抜きサービスを呼び出します。');
-        // mediaClippingService を呼び出し、生成されたセグメントパスを受け取る
-        createdSegmentPaths = await mediaClippingService.handleClippingRequest({
-            commandContext,
+    // --- 処理分岐: Functionから渡された commandAction に基づく ---
+    switch (commandAction) {
+      case 'clip':
+        logger.info(`アクションタイプ '${commandAction}' を検出しました。メディア切り抜きサービスを呼び出します。`);
+        // mediaClippingService を呼び出す (戻り値は不要)
+        await mediaClippingService.handleClippingRequest({
+            commandContext, // 時間抽出のためにコンテキスト全体を渡す
             localFilePath,
             channelId,
             threadTs,
         });
         // 切り抜き処理が成功した場合、この Job のタスクは完了 (結果はサービス内で Slack に投稿済み)
         logger.info('メディア切り抜きサービスによる処理が完了しました。');
+        break; // switch から抜ける
 
-    } else {
-        // --- 従来のAI処理 (切り抜きキーワードがない場合) ---
-        logger.info('「切り抜き」コマンドが含まれていないため、通常のAI処理を実行します。', { command: commandAction });
+      case 'feedback':
+      case 'matsuura_feedback':
+      default: // デフォルトも通常のAI処理とする
+        logger.info(`アクションタイプ '${commandAction}' (またはデフォルト) を検出しました。通常のAI処理を実行します。`);
         const aiResult = await aiService.processMediaFile({
             filePath: localFilePath,
             fileType: targetFile.filetype,
-            command: commandAction,
+            command: commandAction, // action をそのまま渡す (aiService内で再度判定される)
             additionalContext: commandContext,
             channelId: channelId,
             threadTs: threadTs
@@ -132,7 +135,9 @@ async function main() {
 
         // --- 結果をSlackに投稿 ---
         const footerMessage = `\n\n---\n*これはβ版のAIフィードバックです。*\nコマンドを指定しない場合、デフォルトのフィードバックが実行されます。\n特定のフィードバック（例：過去のフィードバックを学習したAI）が必要な場合は、「@営業クローンBOT 松浦さんAIでフィードバック」のようにコマンドを指定してください。`;
-        const messageToSend = `✨ ${commandAction}の結果:\n\n${aiResult}${footerMessage}`;
+        // 結果メッセージのアクション名を明確にする
+        const resultActionName = commandAction === 'matsuura_feedback' ? '松浦さんAIフィードバック' : 'フィードバック';
+        const messageToSend = `✨ ${resultActionName}の結果:\n\n${aiResult}${footerMessage}`;
 
         logger.info('結果をSlackに投稿します。');
         await slackService.postMessage({
@@ -141,7 +146,8 @@ async function main() {
             thread_ts: threadTs
         });
         logger.info('Slackへの投稿完了。');
-    } // --- 処理分岐終了 ---
+        break; // switch から抜ける
+    } // --- switch (commandAction) 終了 ---
 
   } catch (error) {
     logger.error(`Cloud Run Job処理中にエラーが発生しました: ${error.message}`, { error, channelId, threadTs });
@@ -174,22 +180,7 @@ async function main() {
             }
         }
     }
-    // 切り抜きで生成されたセグメントファイル (mediaClippingService内でエラー時に削除されるが、念のためここでも)
-    if (createdSegmentPaths && createdSegmentPaths.length > 0) {
-        logger.info('切り抜きセグメントファイルを削除します (finallyブロック)...');
-        for (const segmentPath of createdSegmentPaths) {
-            try {
-                await fs.unlink(segmentPath);
-                logger.info(`切り抜きセグメントファイルを削除しました: ${segmentPath}`);
-            } catch (cleanupError) {
-                 if (cleanupError.code !== 'ENOENT') {
-                    logger.error(`切り抜きセグメントファイルの削除に失敗しました: ${cleanupError.message}`, { filePath: segmentPath, error: cleanupError });
-                 } else {
-                     logger.warn(`切り抜きセグメントファイルが見つかりませんでした（削除済みか？）: ${segmentPath}`);
-                 }
-            }
-        }
-    }
+    // 切り抜きセグメントファイルのクリーンアップは mediaClippingService 内で行われるため、ここでの処理は不要
   }
 
   logger.info(`Cloud Run Job正常終了: Task ${taskIndex}, Attempt ${attemptIndex}`, { channelId, threadTs });

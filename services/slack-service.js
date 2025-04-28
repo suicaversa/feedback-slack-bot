@@ -35,6 +35,57 @@ exports.postMessage = async ({ channel, text, thread_ts, blocks }) => {
 };
 
 /**
+ * Slackにファイルをアップロードする
+ * @param {object} options - アップロードオプション
+ * @param {string} options.channels - 投稿先のチャンネルID (カンマ区切りも可)
+ * @param {string} [options.thread_ts] - 投稿するスレッドのタイムスタンプ
+ * @param {string} options.filePath - アップロードするファイルのローカルパス
+ * @param {string} [options.filename] - Slack上でのファイル名 (指定なければ元ファイル名)
+ * @param {string} [options.initial_comment] - ファイルに添えるコメント
+ * @param {string} [options.title] - ファイルのタイトル
+ * @returns {Promise<object>} - Slack APIレスポンス (files.uploadV2)
+ */
+exports.uploadFile = async ({ channels, thread_ts, filePath, filename, initial_comment, title }) => {
+  try {
+    const fileReadStream = require('fs').createReadStream(filePath);
+    const effectiveFilename = filename || require('path').basename(filePath);
+    logger.info(`ファイルアップロード開始: channels=${channels}, thread=${thread_ts || 'なし'}, filename=${effectiveFilename}`);
+
+    // files.uploadV2 を使用 (推奨)
+    const result = await web.files.uploadV2({
+      channel_id: channels, // v2では channel_id を使用
+      thread_ts: thread_ts,
+      file: fileReadStream,
+      filename: effectiveFilename,
+      initial_comment: initial_comment,
+      title: title,
+    });
+
+    // uploadV2 のレスポンス構造は upload と異なる場合があるため注意
+    // 成功した場合、result.files 配列にアップロードされたファイル情報が含まれることが多い
+    if (result.ok && result.files && result.files.length > 0) {
+        logger.info(`ファイルアップロード成功: fileId=${result.files[0].id}, permalink=${result.files[0].permalink}`);
+    } else if (result.ok) {
+        // レスポンス構造が予期しない場合
+        logger.warn('ファイルアップロードは成功しましたが、レスポンス構造が予期したものではありませんでした。', { result });
+    } else {
+        // APIがエラーを返した場合
+        logger.error('ファイルアップロードAPIがエラーを返しました。', { result });
+        throw new Error(`ファイルアップロードに失敗しました: ${result.error || 'Unknown error'}`);
+    }
+
+    return result;
+  } catch (error) {
+    logger.error(`ファイルアップロード中にエラーが発生しました: ${error.message}`, { error, filePath });
+    // エラーオブジェクトに Slack API からの詳細が含まれているか確認
+    if (error.data) {
+        logger.error('Slack API Error Data:', error.data);
+    }
+    throw error;
+  }
+};
+
+/**
  * スレッド内のファイルを取得する
  * @param {string} channel - チャンネルID
  * @param {string} threadTs - スレッドID
