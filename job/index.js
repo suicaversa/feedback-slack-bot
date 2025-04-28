@@ -7,7 +7,9 @@ const fs = require('fs').promises; // cleanupTempFileで使うため
 const slackService = require('../services/slack-service.js');
 const fileService = require('../services/file-service.js');
 const aiService = require('../services/ai-service.js');
+const mediaClippingService = require('../services/media-clipping-service.js'); // 追加
 const logger = require('../utils/logger.js'); // loggerもルートから参照
+// timeExtractionService と MediaEditingService は mediaClippingService 内で使われるためここでは不要
 
 // Cloud Run Job 特有の環境変数
 const taskIndex = process.env.CLOUD_RUN_TASK_INDEX || 0;
@@ -42,6 +44,7 @@ async function main() {
   }
 
   let localFilePath = null; // finallyで使うため外で宣言
+  let createdSegmentPaths = []; // 切り抜きサービスが返したパスを保持 (finallyで使う)
   let event; // ★ eventオブジェクトを格納する変数
 
   try {
@@ -96,37 +99,49 @@ async function main() {
     localFilePath = await fileService.downloadFile(targetFile, channelId, threadTs); // channelId, threadTsはログ用
     logger.info(`ファイルのダウンロード完了: ${localFilePath}`);
 
-    // --- AI処理 ---
-    logger.info('AI処理を開始します。', { command: commandAction });
-    const aiResult = await aiService.processMediaFile({
-      filePath: localFilePath,
-      fileType: targetFile.filetype, // ★ targetFileから取得
-      command: commandAction,
-      additionalContext: commandContext,
-      channelId: channelId, // ログや内部処理で使う可能性
-      threadTs: threadTs    // ログや内部処理で使う可能性
-    });
-    logger.info('AI処理完了。');
-     // ★ Geminiからの応答内容をログ出力 (aiResultが文字列の場合のみ)
-    if (typeof aiResult === 'string') {
-      logger.info('AIからの応答(aiResult):\n', aiResult);
+    // --- 処理分岐: "切り抜き"キーワードの有無 ---
+    if (commandContext && commandContext.includes('切り抜き')) {
+        logger.info('「切り抜き」コマンドを検出しました。メディア切り抜きサービスを呼び出します。');
+        // mediaClippingService を呼び出し、生成されたセグメントパスを受け取る
+        createdSegmentPaths = await mediaClippingService.handleClippingRequest({
+            commandContext,
+            localFilePath,
+            channelId,
+            threadTs,
+        });
+        // 切り抜き処理が成功した場合、この Job のタスクは完了 (結果はサービス内で Slack に投稿済み)
+        logger.info('メディア切り抜きサービスによる処理が完了しました。');
+
     } else {
-      logger.warn('aiResultが文字列でないため、ログ出力をスキップします。', { type: typeof aiResult });
-    }
+        // --- 従来のAI処理 (切り抜きキーワードがない場合) ---
+        logger.info('「切り抜き」コマンドが含まれていないため、通常のAI処理を実行します。', { command: commandAction });
+        const aiResult = await aiService.processMediaFile({
+            filePath: localFilePath,
+            fileType: targetFile.filetype,
+            command: commandAction,
+            additionalContext: commandContext,
+            channelId: channelId,
+            threadTs: threadTs
+        });
+        logger.info('AI処理完了。');
+        if (typeof aiResult === 'string') {
+            logger.info('AIからの応答(aiResult):\n', aiResult);
+        } else {
+            logger.warn('aiResultが文字列でないため、ログ出力をスキップします。', { type: typeof aiResult });
+        }
 
+        // --- 結果をSlackに投稿 ---
+        const footerMessage = `\n\n---\n*これはβ版のAIフィードバックです。*\nコマンドを指定しない場合、デフォルトのフィードバックが実行されます。\n特定のフィードバック（例：過去のフィードバックを学習したAI）が必要な場合は、「@営業クローンBOT 松浦さんAIでフィードバック」のようにコマンドを指定してください。`;
+        const messageToSend = `✨ ${commandAction}の結果:\n\n${aiResult}${footerMessage}`;
 
-    // --- 結果をSlackに投稿 ---
-     // ★ 固定メッセージを追加 (Function側から移動)
-    const footerMessage = `\n\n---\n*これはβ版のAIフィードバックです。*\nコマンドを指定しない場合、デフォルトのフィードバックが実行されます。\n特定のフィードバック（例：過去のフィードバックを学習したAI）が必要な場合は、「@営業クローンBOT 松浦さんAIでフィードバック」のようにコマンドを指定してください。`;
-    const messageToSend = `✨ ${commandAction}の結果:\n\n${aiResult}${footerMessage}`;
-
-    logger.info('結果をSlackに投稿します。');
-    await slackService.postMessage({
-      channel: channelId,
-      text: messageToSend,
-      thread_ts: threadTs
-    });
-    logger.info('Slackへの投稿完了。');
+        logger.info('結果をSlackに投稿します。');
+        await slackService.postMessage({
+            channel: channelId,
+            text: messageToSend,
+            thread_ts: threadTs
+        });
+        logger.info('Slackへの投稿完了。');
+    } // --- 処理分岐終了 ---
 
   } catch (error) {
     logger.error(`Cloud Run Job処理中にエラーが発生しました: ${error.message}`, { error, channelId, threadTs });
@@ -144,21 +159,36 @@ async function main() {
     throw error;
   } finally {
     // --- 一時ファイルのクリーンアップ ---
+    // ダウンロードした元のファイル
     if (localFilePath) {
-      logger.info(`一時ファイルを削除します: ${localFilePath}`);
-      // fileService.cleanupTempFile は非同期のはずなので await をつける
-      // また、cleanupTempFile がなければ fs.unlink を直接使う
-      try {
-          if (fileService.cleanupTempFile) {
-             await fileService.cleanupTempFile(localFilePath);
-          } else {
-             await fs.unlink(localFilePath); // cleanupTempFileがない場合のフォールバック
-             logger.info(`fs.unlinkで一時ファイルを削除しました: ${localFilePath}`);
-          }
-      } catch (cleanupError) {
-          logger.error(`一時ファイルの削除に失敗しました: ${cleanupError.message}`, { filePath: localFilePath, error: cleanupError });
-          // クリーンアップ失敗はJobの成否に影響させないことが多いが、ログには残す
-      }
+        logger.info(`ダウンロードした一時ファイルを削除します: ${localFilePath}`);
+        try {
+            await fs.unlink(localFilePath);
+            logger.info(`fs.unlinkで一時ファイルを削除しました: ${localFilePath}`);
+        } catch (cleanupError) {
+            // ファイルが存在しない場合のエラーは無視しても良い場合がある (ENOENT)
+            if (cleanupError.code !== 'ENOENT') {
+                logger.error(`ダウンロードした一時ファイルの削除に失敗しました: ${cleanupError.message}`, { filePath: localFilePath, error: cleanupError });
+            } else {
+                 logger.warn(`ダウンロードした一時ファイルが見つかりませんでした（削除済みか？）: ${localFilePath}`);
+            }
+        }
+    }
+    // 切り抜きで生成されたセグメントファイル (mediaClippingService内でエラー時に削除されるが、念のためここでも)
+    if (createdSegmentPaths && createdSegmentPaths.length > 0) {
+        logger.info('切り抜きセグメントファイルを削除します (finallyブロック)...');
+        for (const segmentPath of createdSegmentPaths) {
+            try {
+                await fs.unlink(segmentPath);
+                logger.info(`切り抜きセグメントファイルを削除しました: ${segmentPath}`);
+            } catch (cleanupError) {
+                 if (cleanupError.code !== 'ENOENT') {
+                    logger.error(`切り抜きセグメントファイルの削除に失敗しました: ${cleanupError.message}`, { filePath: segmentPath, error: cleanupError });
+                 } else {
+                     logger.warn(`切り抜きセグメントファイルが見つかりませんでした（削除済みか？）: ${segmentPath}`);
+                 }
+            }
+        }
     }
   }
 
