@@ -5,53 +5,53 @@
 ## 使用技術
 
 *   **言語:** Node.js
-*   **フレームワーク:** Express.js
-*   **実行環境:** Google Cloud Run (Dockerコンテナ)
-*   **AI:**
-    *   Google Vertex AI Gemini Pro
-    *   Google Vertex AI Gemini Pro Vision
-*   **ストレージ:** 現在利用なし
+*   **フレームワーク:** Express.js (Cloud Functions側)
+*   **実行環境:** Google Cloud Functions (Gen 2), Google Cloud Run Job (Dockerコンテナ)
+*   **AI:** Google Vertex AI Gemini (音声認識含む)
+*   **ストレージ:** なし (ローカル一時ファイルのみ)
 *   **API:**
     *   Slack Events API
     *   Slack Web API
-    *   Google Cloud APIs (Vertex AI: Gemini)
+    *   Google Cloud APIs (Vertex AI: Gemini, Cloud Run Admin API)
 *   **その他:**
     *   Docker
+    *   ffmpeg
 
 ## 開発セットアップ
 
 *   **前提:** Node.js, Google Cloud SDK (`gcloud`), Docker
-*   **設定:** `.env` ファイルに環境変数 (Slack Tokens, GCP Project ID, GCS Bucket Name等) を設定。 (`.env.example`参照)
+*   **設定:** `.env` ファイルに環境変数 (Slack Tokens, GCP Project ID 等) を設定。 (`.env.example`参照)
 *   **依存関係:** `npm install` でインストール。
-*   **ローカル実行:** `npm start` (ngrok等での外部公開が必要)。
+*   **ローカル実行 (Function):** `npm start` (ngrok等での外部公開が必要)。
 *   **ビルド (Docker):** `docker build -t <image_name> .` (Dockerfileが必要)。
 *   **デプロイ:**
     *   Cloud Functions (Gen 2): `deploy.sh` スクリプトを使用 (環境変数のエクスポートが必要)。
-    *   Cloud Run: Dockerイメージをビルドし、`gcloud run deploy` コマンドでデプロイ。
+    *   Cloud Run Job: Dockerイメージをビルドし、`gcloud run jobs deploy` コマンドでデプロイ。
 
 ## 技術的制約
 
-*   **Slack APIタイムアウト:** イベント通知への応答は3秒以内。非同期処理が必須。
-*   **GCP認証:** Cloud RunからGCP APIを呼び出すための適切なサービスアカウントとIAMロール設定が必要。
-*   **コスト:** 各GCPサービスの利用料金が発生。
+*   **Slack APIタイムアウト:** イベント通知への応答は3秒以内。Cloud FunctionsからCloud Run Jobへの非同期起動が必須。
+*   **GCP認証:** Cloud FunctionsおよびCloud Run JobからGCP API (Vertex AI, Cloud Run Admin) を呼び出すための適切なサービスアカウントとIAMロール設定が必要。
+*   **コスト:** 各GCPサービス (Cloud Functions, Cloud Run Job, Vertex AI) の利用料金が発生。
+*   **ローカルストレージ:** Cloud Run Jobのローカルディスク容量には制限があるため、巨大なファイルの扱いや同時処理数に注意が必要。
 
 ## 依存関係
 
-*   **主要ライブラリ (README記載):**
-    *   `@google-cloud/vertexai`
-    *   `@google-cloud/storage`
-    *   `express`
-    *   `body-parser`
+*   **主要ライブラリ (想定):**
+    *   `@google-cloud/vertexai` (Job側)
+    *   `@google-cloud/run` (Function側)
+    *   `express` (Function側)
+    *   `body-parser` (Function側)
     *   `dotenv`
     *   `axios` (Slack API通信、ファイルダウンロード用)
     *   `uuid`
-    *   `winston` (ロギング用 - `utils/logger.js` でカスタム実装の可能性あり)
+    *   `winston` (または `utils/logger.js` のカスタムロガー)
 *   **管理:** `npm` (`package.json`, `package-lock.json`)
 
 ## ツールの使用パターン
 
 *   **バージョン管理:** Git (リポジトリが存在することから推測)。
-*   **コンテナ化:** Docker (Cloud Runデプロイ用)。
-*   **デプロイメント:** `gcloud` CLI, `deploy.sh` スクリプト。
-*   **インフラ:** Google Cloud Platform (Cloud Run, GCS, Vertex AI, Speech-to-Text)。
+*   **コンテナ化:** Docker (Cloud Run Jobデプロイ用)。
+*   **デプロイメント:** `gcloud` CLI, `deploy.sh` スクリプト (Function用)。
+*   **インフラ:** Google Cloud Platform (Cloud Functions, Cloud Run Job, Vertex AI)。
 *   **開発支援:** `.env` ファイルによる環境変数管理。

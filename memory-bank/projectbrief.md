@@ -13,13 +13,16 @@
 *   **範囲内:**
     *   Slackの`app_mention`イベントをトリガーとする。
     *   スレッド内の最新の音声/動画ファイルを処理対象とする。
-    *   メンション内のコマンド（要約、議事録作成、分析など）に応じたAI処理（Vertex AI Gemini, Speech-to-Text）を実行する。
+    *   メンション内のコマンド（要約、議事録作成、分析など）に応じたAI処理（**注: 現在は Vertex AI / Speech-to-Text は不使用**）を実行する。
     *   処理結果を元のSlackスレッドに投稿する。
     *   対応ファイル形式: 音声 (`mp3`, `m4a`, `wav`, `ogg`, `flac`), 動画 (`mp4`, `mov`, `avi`, `webm`, `mkv`)。
-    *   Google Cloud Run上での動作。
-    *   一時ファイルの管理（GCS、ローカル）。
+    *   Google Cloud Functions (Gen 2) および Cloud Run Job 上で動作。
+    *   一時ファイルの管理（ローカル）。
 *   **範囲外:** (READMEからは明確でないため、初期設定)
     *   リアルタイム処理。
+    *   Google Cloud Speech-to-Text の利用。
+    *   Google Vertex AI の利用。
+    *   Google Cloud Storage の利用。
     *   Slack以外のプラットフォーム連携。
     *   複雑な対話機能。
 
