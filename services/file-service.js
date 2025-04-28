@@ -30,8 +30,10 @@ exports.findTargetMediaFile = (files) => {
       const extension = file.name.split('.').pop().toLowerCase();
       return mediaExtensions.includes(extension);
     })
-    .sort((a, b) => new Date(b.created) - new Date(a.created));
+    // Sort by creation timestamp in ascending order (oldest first)
+    .sort((a, b) => new Date(a.created) - new Date(b.created));
 
+  // Return the first element, which is now the oldest media file
   return mediaFiles.length > 0 ? mediaFiles[0] : null;
 };
 
