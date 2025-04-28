@@ -83,7 +83,7 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     logger.info(`File size: ${fileSizeInMegabytes.toFixed(2)} MB`);
 
     // ファイルサイズに基づいてモデル名を決定
-    const modelName = fileSizeInMegabytes > 50 ? 'gemini-1.5-pro-latest' : 'gemini-2.5-pro-exp-03-25';
+    const modelName = fileSizeInMegabytes > 50 ? 'gemini-1.5-pro-latest' : 'gemini-2.5-pro-preview-03-25';
     logger.info(`Selected model based on file size: ${modelName}`);
 
     // モデルインスタンスを取得
