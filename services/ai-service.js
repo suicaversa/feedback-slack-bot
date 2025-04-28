@@ -1,8 +1,7 @@
 // services/aiService.js
 // Vertex AI SDK (旧実装) はコメントアウトまたは削除 - Gemini API (generative-ai SDK) を使用
 // const { VertexAI } = require('@google-cloud/vertexai');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const { GoogleAIFileManager } = require("@google/generative-ai/server");
+const { GoogleGenerativeAI } = require("@google/generative-ai"); // Type と GoogleAIFileManager を削除
 const fs = require('fs'); // ファイルサイズ取得に必要
 const path = require('path');
 // storageService は Gemini API ファイルアップロードを使うため不要になる可能性あり
@@ -12,8 +11,10 @@ const config = require('../config/config.js');
 // Strategy を読み込む
 const DefaultFeedbackStrategy = require('./ai-strategies/default-feedback-strategy.js');
 const MatsuuraFeedbackStrategy = require('./ai-strategies/matsuura-feedback-strategy.js');
+// 新しいサービスを require
+const geminiFileService = require('./gemini-file-service.js');
 
-// Gemini API クライアントの初期化
+// Gemini API クライアントの初期化 (genAI のみ)
 // TODO: config.js で GEMINI_API_KEY を必須にするか検討
 const apiKey = config.GEMINI_API_KEY || process.env.GEMINI_API_KEY; // config経由または直接環境変数から取得
 if (!apiKey) {
@@ -21,8 +22,9 @@ if (!apiKey) {
   // 起動時にエラーにするか、処理時にエラーにするか検討
   // throw new Error('GEMINI_API_KEY is not set.');
 }
-const genAI = new GoogleGenerativeAI(apiKey);
-const fileManager = new GoogleAIFileManager(apiKey);
+// genAI の初期化時に apiKey の存在を確認
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// const fileManager = new GoogleAIFileManager(apiKey); // fileManager の初期化を削除
 
 // Vertex AI クライアントの初期化 (旧実装 - コメントアウト)
 /*
@@ -34,56 +36,7 @@ const vertexai = new VertexAI({
 
 // --- モデルと生成設定は processMediaFile 内で動的に決定 ---
 
-// --- ヘルパー関数 (サンプルスクリプトから移植) ---
-/**
- * Uploads the given file to Gemini.
- */
-async function uploadToGemini(filePath, mimeType) {
-  const uploadResult = await fileManager.uploadFile(filePath, {
-    mimeType,
-    displayName: path.basename(filePath), // パス全体ではなくファイル名を表示
-  });
-  const file = uploadResult.file;
-  logger.info(`Uploaded file ${file.displayName} as: ${file.name} (URI: ${file.uri})`);
-  return file;
-}
-
-/**
- * Waits for the given files to be active.
- */
-async function waitForFilesActive(files) {
-  logger.info("Waiting for file processing...");
-  let allFilesReady = true;
-  for (const name of files.map((file) => file.name)) {
-    process.stdout.write(`  - ${name}: `);
-    let file = await fileManager.getFile(name);
-    let retries = 0;
-    const maxRetries = 180; // 約30分待機 (10秒 * 180回 = 1800秒)
-    while (file.state === "PROCESSING" && retries < maxRetries) {
-      process.stdout.write(".");
-      await new Promise((resolve) => setTimeout(resolve, 10_000)); // 10秒待機
-      file = await fileManager.getFile(name);
-      retries++;
-    }
-    if (file.state === "ACTIVE") {
-      process.stdout.write(" ACTIVE\n");
-    } else {
-      process.stdout.write(` ${file.state}\n`); // PROCESSING 以外の状態 (FAILEDなど) を表示
-      logger.error(`File ${file.name} failed to process or timed out. State: ${file.state}`);
-      allFilesReady = false;
-      // エラー処理: 特定のファイルが失敗した場合、処理を中断するかどうか検討
-      // throw Error(`File ${file.name} failed to process`);
-    }
-  }
-  if (allFilesReady) {
-    logger.info("...all files ready for prompting.\n");
-  } else {
-    logger.error("...some files failed processing. See logs above.\n");
-    // 必要に応じてエラーをスローするなど、後続処理を中断する
-    throw new Error("One or more files failed to process.");
-  }
-}
-// --- ここまでヘルパー関数 ---
+// --- ヘルパー関数は gemini-file-service.js に移動 ---
 
 
 /**
@@ -184,13 +137,13 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
       ];
     }
 
-    // ファイルアップロード実行 (共通処理)
+    // ファイルアップロード実行 (geminiFileService を使用)
     const uploadedFiles = await Promise.all(
-        filesToUploadConfig.map(file => uploadToGemini(file.path, file.mimeType))
+        filesToUploadConfig.map(file => geminiFileService.uploadFile(file.path, file.mimeType))
     );
 
-    // 3. ファイル処理待機 (共通処理)
-    await waitForFilesActive(uploadedFiles);
+    // 3. ファイル処理待機 (geminiFileService を使用)
+    await geminiFileService.waitForFilesActive(uploadedFiles);
 
     // 4. プロンプト準備 (戦略に委譲)
     const promptParts = strategy.preparePromptParts(uploadedFiles, additionalContext);
@@ -230,21 +183,20 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     const debugMessage = `\n\n\`\`\`\nDebug: Used model: ${modelName}\n\`\`\``;
     const finalResponseText = responseText + debugMessage;
 
-    // 7. アップロードしたファイルを削除 (クリーンアップ) (共通処理)
-    //    waitForFilesActiveの後、かつ結果取得後に実行
-    logger.info('Deleting uploaded files from Gemini API...');
-    await Promise.all(
-        uploadedFiles.map(file => fileManager.deleteFile(file.name).catch(err => {
-            // 削除エラーはログに残すが、処理は継続させる
-            logger.warn(`Failed to delete file ${file.name} from Gemini API: ${err.message}`);
-        }))
-    );
-    logger.info('Uploaded files deleted.');
+    // 7. アップロードしたファイルを削除 (クリーンアップ) (geminiFileService を使用)
+    //    結果取得後に実行
+    await geminiFileService.deleteFiles(uploadedFiles); // Pass the array of uploaded file objects
 
 
     return finalResponseText; // 変更: デバッグメッセージ付きのテキストを返す
 
   } catch (error) {
+    // エラー発生時にもファイルの削除を試みる (ベストエフォート)
+    // uploadedFiles 変数が try ブロック内で定義されているため、catch ブロック外でアクセスできない
+    // エラーハンドリング内で削除を試みる場合は、uploadedFiles を try の外で宣言する必要がある
+    // ここでは、エラー発生前の削除処理が完了していることを前提とするか、
+    // または geminiFileService.deleteFiles が冪等であることを期待する。
+    // 現状の実装では、エラー発生 *後* の削除は行わない。
     // エラーメッセージに加えて、エラーオブジェクト全体をログに出力する
     // JSON.stringify を使うことで、ネストされた情報も確認しやすくなる可能性がある
     // 第3引数に 2 を指定して整形する
@@ -262,8 +214,7 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
   }
 }; // exports.processMediaFile の閉じ括弧を追加
 
-/* --- 元の処理 (コメントアウト) ---
-*/
+// extractTimeRangesFromText は time-extraction-service.js に移動
 
 /**
  * 音声ファイルかどうかを判定
