@@ -12,6 +12,7 @@
 
 *   Memory Bank の全ファイルを更新し、現在の技術スタック (Gemini使用, GCS/STT不使用) と新しいアーキテクチャ計画 (Function + Job) を反映させた。
 *   Waltzフィードバックモードを追加 (`utils/command-parser.js`, `services/ai-service.js`, `services/ai-strategies/waltz-feedback-strategy.js`)。
+*   Slackメンション時に一時的な返信メッセージを投稿する機能を追加 (`controllers/slack-controller.js`)。
 
 ## 次のステップ
 
