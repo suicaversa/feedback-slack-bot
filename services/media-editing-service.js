@@ -109,9 +109,9 @@ class MediaEditingService {
 
 
                 const segmentOutputPath = path.join(this.tempDir, `${outputFileNamePrefix}_${uniqueId}_segment_${i}${path.extname(inputPath)}`);
-                // Use -t (duration) and -copyts. Keep -c copy and -avoid_negative_ts.
-                const command = `ffmpeg -copyts -i "${inputPath}" -ss ${range.start} -t ${duration} -c copy -avoid_negative_ts make_zero "${segmentOutputPath}"`;
-                logger.info(`Executing ffmpeg command for segment ${i}: ${command}`);
+                // Remove -c copy to force re-encoding for accurate cutting. Keep -copyts and -avoid_negative_ts.
+                const command = `ffmpeg -copyts -i "${inputPath}" -ss ${range.start} -t ${duration} -avoid_negative_ts make_zero "${segmentOutputPath}"`;
+                logger.info(`Executing ffmpeg command for segment ${i} (re-encoding): ${command}`);
 
                 await new Promise((resolve, reject) => {
                     // Increased maxBuffer size for potentially large stderr/stdout, though streaming might be better for very verbose output.
