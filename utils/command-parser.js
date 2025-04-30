@@ -24,6 +24,7 @@ exports.parseCommand = (text) => {
     const commandMappings = [
       { action: 'clip', keywords: ['切り抜き', 'カット', 'cut', 'clip'] },
       { action: 'matsuura_feedback', keywords: ['松浦さんAIでフィードバック', '松浦さんAI', '松浦さん'] },
+      { action: 'waltz_feedback', keywords: ['ワルツ', 'アポアポ'] }, // Waltzフィードバックを追加
       { action: 'feedback', keywords: ['フィードバック', 'FB', 'fb'] }, // 通常のフィードバック (優先度低)
     ];
 
@@ -66,7 +67,7 @@ exports.parseCommand = (text) => {
 
     return {
       isValid,
-      action, // 'clip', 'feedback', 'matsuura_feedback'
+      action, // 'clip', 'feedback', 'matsuura_feedback', 'waltz_feedback'
       context: context || null // Context is the full text after mention removal
     };
   } catch (error) {

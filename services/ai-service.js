@@ -11,6 +11,7 @@ const config = require('../config/config.js');
 // Strategy を読み込む
 const DefaultFeedbackStrategy = require('./ai-strategies/default-feedback-strategy.js');
 const MatsuuraFeedbackStrategy = require('./ai-strategies/matsuura-feedback-strategy.js');
+const WaltzFeedbackStrategy = require('./ai-strategies/waltz-feedback-strategy.js'); // Waltz戦略を読み込む
 // 新しいサービスを require
 const geminiFileService = require('./gemini-file-service.js');
 
@@ -45,11 +46,15 @@ const vertexai = new VertexAI({
  * @returns {Object} - 選択された戦略オブジェクト
  */
 function selectStrategy(commandAction) {
+  // commandAction は command-parser.js の 'action' が渡される想定
   switch (commandAction) {
-    case '松浦さんAIでフィードバック':
+    case 'matsuura_feedback': // command-parser.js の action 名に合わせる
       logger.info('Selecting Matsuura AI Feedback Strategy.');
       return MatsuuraFeedbackStrategy;
-    case 'フィードバック': // デフォルト含む
+    case 'waltz_feedback': // 新しい action 名
+      logger.info('Selecting Waltz Feedback Strategy.');
+      return WaltzFeedbackStrategy;
+    case 'feedback': // デフォルト含む
     default:
       logger.info('Selecting Default Feedback Strategy.');
       return DefaultFeedbackStrategy;
@@ -125,7 +130,8 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     logger.info(`Detected MimeType: ${detectedMimeType} for fileType: ${fileType}`);
 
     // 戦略に応じてアップロードするファイルを決定
-    if (command === '松浦さんAIでフィードバック') {
+    // command は command-parser.js の action が渡される想定
+    if (command === 'matsuura_feedback' || command === 'waltz_feedback') { // waltz_feedback を追加
       filesToUploadConfig = [
         { path: filePath, mimeType: detectedMimeType }, // メディアファイルのみ
       ];
