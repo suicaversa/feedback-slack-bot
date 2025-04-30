@@ -21,7 +21,7 @@ function preparePromptParts(uploadedFiles, additionalContext) {
   }
 
   // この戦略ではメディアファイルのみを期待する
-  const mediaFile = uploadedFiles.find(file => file && file.fileUri); // fileUri を持つものを探す
+  const mediaFile = uploadedFiles.find(file => file && file.uri); // file.uri を持つものを探す (修正)
   if (!mediaFile) {
     logger.error('WaltzFeedbackStrategy: Valid media file not found in uploadedFiles.', { uploadedFiles });
     throw new Error('WaltzFeedbackStrategy could not find a valid media file.');
@@ -48,7 +48,7 @@ function preparePromptParts(uploadedFiles, additionalContext) {
     {
       fileData: {
         mimeType: mediaFile.mimeType,
-        fileUri: mediaFile.fileUri,
+        fileUri: mediaFile.uri, // file.uri を使用 (修正)
       },
     },
     {
