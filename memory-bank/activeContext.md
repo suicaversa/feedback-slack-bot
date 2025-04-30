@@ -6,10 +6,12 @@
 
 *   **アーキテクチャ変更の実装:** Cloud Functions (Gen 2) から Cloud Run Job を非同期に起動する構成に変更する。
 *   Memory Bank の更新 (完了)。
+*   **Waltzフィードバックモードの追加:** 新しいAI戦略 (`waltz_feedback`) を実装し、関連ファイルを更新。ローカルテストで動作確認済み。
 
 ## 最近の変更
 
 *   Memory Bank の全ファイルを更新し、現在の技術スタック (Gemini使用, GCS/STT不使用) と新しいアーキテクチャ計画 (Function + Job) を反映させた。
+*   Waltzフィードバックモードを追加 (`utils/command-parser.js`, `services/ai-service.js`, `services/ai-strategies/waltz-feedback-strategy.js`)。
 
 ## 次のステップ
 
@@ -39,7 +41,7 @@
 
 *   **非同期処理:** Function は Job を起動して即時応答。Job で重い処理を実行。
 *   **サービス分割:** 既存の `services/` を Job 側で再利用/参照する。
-*   **ストラテジーパターン:** `services/ai-strategies/` を Job 側で利用。
+*   **ストラテジーパターン:** `services/ai-strategies/` を Job 側で利用 (現在 `default`, `matsuura`, `waltz` が存在)。
 *   **設定管理:** `config/config.js` と `.env` ファイル。
 *   **インフラ:** Google Cloud Functions (Gen 2), Cloud Run Job, Vertex AI。
 *   **動画処理:** `ffmpeg` (Job コンテナ内)。

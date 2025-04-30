@@ -10,6 +10,7 @@
     *   Vertex AI Gemini API連携 (音声認識含む)。
     *   `ffmpeg`による動画処理。
     *   Slackへの結果投稿。
+    *   **Waltzフィードバックモード:** コマンド (`ワルツ`, `アポアポ`) による呼び出しと、専用プロンプト (`prompts/waltz_prompt.txt`) を使用したAI処理 (ローカルテスト済み)。
 *   **注記:** 詳細な動作確認、特にエラーハンドリングや大規模ファイルでの挙動は未確認。
 
 ## 残っている作業
@@ -59,4 +60,4 @@
     *   時間のかかる処理 (ファイル処理、AI処理、Slack投稿) を Cloud Run Job に分離し、Cloud Functions から Cloud Run Admin API で非同期に起動するアーキテクチャに変更することを決定。
 *   **Slack連携ライブラリ:** `axios`を直接利用。
 *   **ロギング:** カスタムロガー (`utils/logger.js`) を利用。
-*   **AI戦略:** `services/ai-strategies/` で管理。
+*   **AI戦略:** `services/ai-strategies/` で管理 (デフォルト、松浦さんAI、Waltzフィードバック)。

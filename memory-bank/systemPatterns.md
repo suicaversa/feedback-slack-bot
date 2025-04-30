@@ -55,7 +55,7 @@
 
 *   **非同期処理:** Slackの3秒タイムアウトルールに対応するため、Cloud FunctionsはJobを起動してすぐに`200 OK`を返す。重い処理はCloud Run Jobで実行。
 *   **サービス分割:** 処理ロジックが `services/` ディレクトリ内の各サービス（AI, File, Slack）に分割されている。
-*   **ストラテジーパターン:** AI処理ロジックが `services/ai-strategies/` に分離されており、コマンドに応じて異なる戦略（プロンプト）を適用可能。
+*   **ストラテジーパターン:** AI処理ロジックが `services/ai-strategies/` に分離されており、コマンドに応じて異なる戦略（プロンプト）を適用可能 (例: `default`, `matsuura`, `waltz`)。
 *   **設定管理:** `config/config.js` で設定値を一元管理。
 *   **ロギング:** `utils/logger.js` でカスタムロガーを提供。
 
