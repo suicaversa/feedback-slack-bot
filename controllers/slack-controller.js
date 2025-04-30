@@ -90,15 +90,22 @@ exports.handleSlackEvent = async (req, res) => {
       },
     };
 
-    try {
-      const [operation] = await jobsClient.runJob(runJobRequest);
-      logger.info(`Cloud Run Job の起動リクエストを送信しました。Operation: ${operation.name}`, { channel, threadId });
-      // Jobの完了待機はしない (非同期起動)
+        try {
+          // ★ 一時返信を投稿
+          await slackService.postMessage({
+            channel,
+            text: `⏳ リクエストを受け付けました。処理を開始します... (コマンド: ${command.action || 'デフォルト'})`,
+            thread_ts: threadId
+          });
 
-      // 必要であれば、Job起動を受け付けた旨をSlackに通知しても良い
-      // await slackService.postMessage({
-      //   channel,
-      //   text: `✅ リクエストを受け付け、バックグラウンド処理を開始しました。完了までしばらくお待ちください。`,
+          const [operation] = await jobsClient.runJob(runJobRequest);
+          logger.info(`Cloud Run Job の起動リクエストを送信しました。Operation: ${operation.name}`, { channel, threadId });
+          // Jobの完了待機はしない (非同期起動)
+
+          // 必要であれば、Job起動を受け付けた旨をSlackに通知しても良い
+          // await slackService.postMessage({
+          //   channel,
+          //   text: `✅ リクエストを受け付け、バックグラウンド処理を開始しました。完了までしばらくお待ちください。`,
       //   thread_ts: threadId
       // });
 
