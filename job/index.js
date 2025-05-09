@@ -1,7 +1,11 @@
-// job/index.js
+require("./instrument.js");
+  
+const Sentry = require("@sentry/node");
 require('dotenv').config({ path: '../.env' }); // ルートの.envを参照する場合
+
 const path = require('path');
 const fs = require('fs').promises; // cleanupTempFileで使うため
+
 
 // サービスとユーティリティをインポート (パスを調整)
 const slackService = require('../services/slack-service.js');
@@ -190,6 +194,7 @@ async function main() {
 main().catch((error) => {
   // main関数内でキャッチされなかったエラー、または再スローされたエラー
   logger.error(`Cloud Run Jobが最終的に失敗しました: ${error.message}`, { error });
+  Sentry.captureException(error);
   // Cloud Run Job は非ゼロの終了コードで終了し、失敗としてマークされる
   process.exit(1);
 });
