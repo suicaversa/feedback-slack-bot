@@ -109,13 +109,13 @@ class MediaEditingService {
 
 
                 const segmentOutputPath = path.join(this.tempDir, `${outputFileNamePrefix}_${uniqueId}_segment_${i}${path.extname(inputPath)}`);
-                // Remove -c copy to force re-encoding for accurate cutting. Keep -copyts and -avoid_negative_ts.
-                const command = `ffmpeg -copyts -i "${inputPath}" -ss ${range.start} -t ${duration} -avoid_negative_ts make_zero "${segmentOutputPath}"`;
-                logger.info(`Executing ffmpeg command for segment ${i} (re-encoding): ${command}`);
+                // Re-add -c copy. Use -t (duration) and -copyts. Keep -avoid_negative_ts.
+                const command = `ffmpeg -copyts -i "${inputPath}" -ss ${range.start} -t ${duration} -c copy -avoid_negative_ts make_zero "${segmentOutputPath}"`;
+                logger.info(`Executing ffmpeg command for segment ${i}: ${command}`);
 
-                await new Promise((resolve, reject) => {
+                await new Promise(async (resolve, reject) => { // Add async here
                     // Increased maxBuffer size for potentially large stderr/stdout, though streaming might be better for very verbose output.
-                    exec(command, { maxBuffer: 1024 * 1024 * 5 }, (error, stdout, stderr) => { // 5MB buffer
+                    exec(command, { maxBuffer: 1024 * 1024 * 5 }, async (error, stdout, stderr) => { // Add async here
                         // Check for explicit error first
                         if (error) {
                             logger.error(`ffmpeg segment cutting error (segment ${i}): ${error.message}`);
@@ -139,23 +139,29 @@ class MediaEditingService {
                         // This check happens *after* potential warnings, as warnings might still produce a valid file sometimes.
                         let fileExistsAndNotEmpty = false;
                         try {
-                            const stats = fs.statSync(segmentOutputPath); // Use sync for simplicity within promise callback
+                            // Use async fs.stat from require('fs').promises
+                            const stats = await fs.stat(segmentOutputPath);
                             fileExistsAndNotEmpty = stats.isFile() && stats.size > 0;
                             if (!fileExistsAndNotEmpty) {
                                 logger.warn(`ffmpeg output file for segment ${i} is missing or empty: ${segmentOutputPath}`);
+                            } else {
+                                logger.info(`Output file check OK for segment ${i}: ${segmentOutputPath} (Size: ${stats.size} bytes)`);
                             }
                         } catch (statError) {
-                             logger.warn(`Could not stat ffmpeg output file for segment ${i}: ${statError.message}`);
-                             // fileExistsAndNotEmpty remains false
+                            // Log specific error codes if available (e.g., ENOENT for file not found)
+                            const errorCode = statError.code ? ` (${statError.code})` : '';
+                            logger.warn(`Could not stat ffmpeg output file for segment ${i}${errorCode}: ${statError.message}`);
+                            // fileExistsAndNotEmpty remains false
                         }
 
 
                         if (hasWarning || !fileExistsAndNotEmpty) {
-                             logger.warn(`Potential issue or empty/missing file detected for segment ${i}. Stderr: ${stderr}`);
-                             // Try to delete the potentially problematic file before rejecting
-                             fs.unlink(segmentOutputPath).catch(unlinkErr => logger.warn(`Failed to delete potentially problematic segment file ${segmentOutputPath}: ${unlinkErr.message}`));
-                             reject(new Error(`Potential issue, empty/missing file, or warning in segment ${i} [${range.start}-${range.end}]. Check ffmpeg logs. Stderr: ${stderr}`));
-                             return;
+                            logger.warn(`Potential issue or empty/missing file detected for segment ${i}. Rejecting. Stderr: ${stderr}`);
+                            // Try to delete the potentially problematic file before rejecting
+                            // Use async unlink from require('fs').promises
+                            fs.unlink(segmentOutputPath).catch(unlinkErr => logger.warn(`Failed to delete potentially problematic segment file ${segmentOutputPath}: ${unlinkErr.message}`));
+                            reject(new Error(`Potential issue, empty/missing file, or warning in segment ${i} [${range.start}-${range.end}]. Check ffmpeg logs. Stderr: ${stderr}`));
+                            return;
                         }
 
                         // Log success information
