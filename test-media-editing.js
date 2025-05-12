@@ -2,6 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import MediaEditingService from './services/media-editing-service.js';
 import logger from './utils/logger.js';
+import fs from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,7 @@ async function runTest() {
 
     try {
         // Ensure output directory exists (it doubles as temp dir here)
+        await fs.mkdir(outputDir, { recursive: true });
         await mediaEditingService.ensureTempDirExists();
         logger.info(`Ensured output/temp directory exists: ${outputDir}`);
 

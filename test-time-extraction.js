@@ -1,53 +1,29 @@
-const { extractTimeRangesFromText } = require('./services/time-extraction-service');
-const logger = require('./utils/logger'); // Assuming logger exists
+import timeExtractionService from './services/time-extraction-service.js';
+import logger from './utils/logger.js';
 
-// --- Test Cases ---
-const testTexts = [
-    "10分から12分まで切り抜いてください。",
-    "5:15から20:30と、あと1時間5分10秒から1時間10分5秒の部分をお願いします。",
-    "最初の5分間だけお願いします。", // This should not extract a range
-    "30秒から1分までと、最後の10秒間", // "最後の10秒間" is ambiguous
-    "切り抜きは不要です。", // No time ranges
-    "00:01:30から00:02:00まで、それと 00:03:00-00:03:30 も。", // Different formats
-    "1時間から1時間半まで", // "1時間半" might be tricky, let's see
-    "invalid time format 99:99:99 to 11:11:11", // Invalid format
-    "", // Empty string
-    "5分から10分、15分から20分、25分から30分", // Multiple ranges
-];
-// --- End Test Cases ---
+async function runTimeExtractionTest() {
+    const testCases = [
+        '切り抜き 62:01-68:02', // 62分1秒から68分2秒のケース
+        '切り抜き 80:10-90:10', // 80分10秒から90分10秒のケース
+        '切り抜き 100:10-122:00', // 100分10秒から122分0秒のケース
+        '切り抜き 120:00-130:00', // 120分から130分のケース
+        '切り抜き 150:30-160:45', // 150分30秒から160分45秒のケース
+        '切り抜き 200:00-210:00', // 200分から210分のケース
+        '切り抜き 250:15-260:30', // 250分15秒から260分30秒のケース
+    ];
 
-async function runTest() {
-    logger.info('--- Starting Time Extraction Test ---');
-
-    // Ensure API key is available (the service checks internally, but good practice)
-    if (!process.env.GEMINI_API_KEY && !require('./config/config.js').GEMINI_API_KEY) {
-        logger.error('GEMINI_API_KEY is not set. Skipping test.');
-        logger.info('--- Time Extraction Test Finished (Skipped) ---');
-        return;
-    }
-
-    for (let i = 0; i < testTexts.length; i++) {
-        const text = testTexts[i];
-        logger.info(`\n[Test Case ${i + 1}] Input Text: "${text}"`);
+    logger.info('--- 時間抽出テスト開始 ---');
+    for (const testText of testCases) {
+        logger.info(`テストテキスト: ${testText}`);
         try {
-            const timeRanges = await extractTimeRangesFromText(text);
-            logger.info(`[Test Case ${i + 1}] Extracted Ranges: ${JSON.stringify(timeRanges)}`);
-            // Basic validation check (array is expected)
-            if (!Array.isArray(timeRanges)) {
-                 logger.error(`[Test Case ${i + 1}] FAILED: Result is not an array!`);
-            } else {
-                 logger.info(`[Test Case ${i + 1}] PASSED (Format Check)`);
-            }
+            const timeRanges = await timeExtractionService.extractTimeRangesFromText(testText);
+            logger.info('抽出結果:');
+            logger.info(JSON.stringify(timeRanges, null, 2));
         } catch (error) {
-            logger.error(`[Test Case ${i + 1}] FAILED with error: ${error.message}`);
-            if (error.stack) {
-                 logger.error(`Stack trace: ${error.stack}`);
-            }
+            logger.error('時間抽出テストでエラー:', error);
         }
     }
-
-    logger.info('\n--- Time Extraction Test Finished ---');
+    logger.info('--- 時間抽出テスト終了 ---');
 }
 
-// Execute the test function
-runTest();
+runTimeExtractionTest();

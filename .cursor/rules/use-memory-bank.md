@@ -1,0 +1,1 @@
+../../.clinerules/use-memory-bank.md

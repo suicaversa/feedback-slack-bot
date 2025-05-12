@@ -90,7 +90,11 @@ const handleSlackEvent = async (req, res) => {
       },
     };
 
-        try {
+    const runJobOptions = {
+      maxRetries: 3
+    };
+
+    try {
           // ★ 一時返信を投稿
           await slackService.postMessage({
             channel,
@@ -98,7 +102,7 @@ const handleSlackEvent = async (req, res) => {
             thread_ts: threadId
           });
 
-          const [operation] = await jobsClient.runJob(runJobRequest);
+          const [operation] = await jobsClient.runJob(runJobRequest, runJobOptions);
           logger.info(`Cloud Run Job の起動リクエストを送信しました。Operation: ${operation.name}`, { channel, threadId });
           // Jobの完了待機はしない (非同期起動)
 

@@ -2,6 +2,8 @@
 import { WebClient } from '@slack/web-api';
 import config from '../config/config.js';
 import logger from '../utils/logger.js';
+import fs from 'fs';
+import path from 'path';
 
 // Slack WebClient初期化
 const web = new WebClient(config.SLACK_BOT_TOKEN);
@@ -45,8 +47,8 @@ async function postMessage({ channel, text, thread_ts, blocks }) {
  */
 export async function uploadFile({ channels, thread_ts, filePath, filename, initial_comment, title }) {
   try {
-    const fileReadStream = require('fs').createReadStream(filePath);
-    const effectiveFilename = filename || require('path').basename(filePath);
+    const fileReadStream = fs.createReadStream(filePath);
+    const effectiveFilename = filename || path.basename(filePath);
     logger.info(`ファイルアップロード開始: channels=${channels}, thread=${thread_ts || 'なし'}, filename=${effectiveFilename}`);
 
     // files.uploadV2 を使用 (推奨)
@@ -145,4 +147,4 @@ export async function getFileDownloadUrl(fileId) {
   }
 };
 
-export default { postMessage, getFilesInThread, getFileDownloadUrl };
+export default { postMessage, getFilesInThread, getFileDownloadUrl, uploadFile };

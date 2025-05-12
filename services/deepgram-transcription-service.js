@@ -32,7 +32,7 @@ function getContentType(filePath) {
 export async function transcribeWithSpeakerDiarization(filePath) {
   logger.info(`Deepgram文字起こし開始: ${filePath}`);
   const audioBuffer = fs.readFileSync(filePath);
-  const url = 'https://api.deepgram.com/v1/listen?punctuate=true&language=ja&diarize=true&utterances=true&model=nova-2';
+  const url = 'https://api.deepgram.com/v1/listen?punctuate=true&language=multi&diarize=true&utterances=true&model=nova-3';
 
   const contentType = getContentType(filePath);
 
