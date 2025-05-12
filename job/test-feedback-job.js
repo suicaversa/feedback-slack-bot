@@ -2,12 +2,14 @@
 // このスクリプトは、aiService.processMediaFile を直接呼び出して
 // 'waltz_feedback' モードの動作をテストします。
 
-// ルートの .env ファイルを読み込む
-require('dotenv').config({ path: '../.env' });
+import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import aiService from '../services/ai-service.js';
+import logger from '../utils/logger.js';
 
-const path = require('path');
-const aiService = require('../services/ai-service.js');
-const logger = require('../utils/logger.js');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // テスト用パラメータ
 const testFilePath = path.join(__dirname, '../tmp/failed_sample.mp4'); // テスト用音声ファイル

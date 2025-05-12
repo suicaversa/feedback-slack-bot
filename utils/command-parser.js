@@ -1,5 +1,5 @@
-// utils/commandParser.js
-const logger = require('./logger.js');
+// utils/command-parser.js
+import logger from './logger.js';
 
 /**
  * メンションメッセージからコマンドを解析する
@@ -7,7 +7,7 @@ const logger = require('./logger.js');
  * @returns {Object} - コマンド情報 { isValid: boolean, action: string | null, context: string | null }
  *                    action: 'clip', 'feedback', 'matsuura_feedback', or null if invalid
  */
-exports.parseCommand = (text) => {
+function parseCommand(text) {
   try {
     // メンション部分を除去
     const mentionRegex = /<@[A-Z0-9]+>/;
@@ -40,42 +40,24 @@ exports.parseCommand = (text) => {
     let commandFound = false;
     for (const mapping of commandMappings) {
       for (const keyword of mapping.keywords) {
-        // キーワードがテキストのどこかに含まれているか確認 (より柔軟に)
-        // 大文字小文字を区別しない
-        if (cleanedText.toLowerCase().includes(keyword.toLowerCase())) {
+        if (cleanedText.includes(keyword)) {
           action = mapping.action;
-          // コンテキストは、キーワードに関わらず cleanedText 全体とする
-          // (切り抜きの場合、時間情報はコンテキスト全体から抽出するため)
-          context = cleanedText;
+          // キーワード以降のテキストをcontextとする
+          const keywordIndex = cleanedText.indexOf(keyword);
+          context = cleanedText.substring(keywordIndex + keyword.length).trim();
           commandFound = true;
-          logger.info(`キーワード "${keyword}" を検出、アクションを "${action}" に設定。`);
-          break; // 最初に見つかった優先度の高いコマンドで決定
+          break;
         }
       }
       if (commandFound) break;
     }
 
-    // コマンドキーワードが見つからなかった場合
-    if (!commandFound) {
-      // キーワードが含まれていなくても、何らかのテキストがあればデフォルトアクションを実行
-      action = defaultAction;
-      context = cleanedText;
-      logger.info(`特定のコマンドキーワードが見つかりません。デフォルトアクション "${action}" を使用します。`);
-    }
-
-    logger.info(`コマンド解析結果: action=${action}, context=${context || 'なし'}`);
-
-    return {
-      isValid,
-      action, // 'clip', 'feedback', 'matsuura_feedback', 'waltz_feedback'
-      context: context || null // Context is the full text after mention removal
-    };
+    logger.info(`コマンド解析: action=${action}, context=${context}`);
+    return { isValid, action, context };
   } catch (error) {
-    logger.error(`コマンド解析中にエラーが発生しました: ${error.message}`, { error });
-    return {
-      isValid: false,
-      action: null,
-      context: null
-    };
+    logger.error(`コマンド解析中にエラーが発生しました: ${error.message}`);
+    return { isValid: false, action: null, context: null };
   }
-};
+}
+
+export default { parseCommand };

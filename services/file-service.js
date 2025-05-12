@@ -1,29 +1,27 @@
-// services/fileService.js
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
-const slackService = require('./slack-service.js');
-const config = require('../config/config.js');
-const logger = require('../utils/logger.js');
+// services/file-service.js
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+import slackService from './slack-service.js';
+import config from '../config/config.js';
+import logger from '../utils/logger.js';
 
 /**
  * 対象の音声/動画ファイルを探す
  * @param {Array} files - ファイルオブジェクトの配列
  * @returns {Object|null} - 対象ファイルまたはnull
  */
-exports.findTargetMediaFile = (files) => {
+function findTargetMediaFile(files) {
   if (!files || files.length === 0) {
     return null;
   }
-
   // 対応するメディアファイルの拡張子
   const mediaExtensions = [
     'mp3', 'm4a', 'wav', 'ogg', 'flac', // 音声
     'mp4', 'mov', 'avi', 'webm', 'mkv'  // 動画
   ];
-
   // 対象ファイルを探す（最新のもの優先）
   const mediaFiles = files
     .filter(file => {
@@ -32,10 +30,9 @@ exports.findTargetMediaFile = (files) => {
     })
     // Sort by creation timestamp in ascending order (oldest first)
     .sort((a, b) => new Date(a.created) - new Date(b.created));
-
   // Return the first element, which is now the oldest media file
   return mediaFiles.length > 0 ? mediaFiles[0] : null;
-};
+}
 
 /**
  * ファイルをダウンロードする
@@ -44,7 +41,7 @@ exports.findTargetMediaFile = (files) => {
  * @param {string} threadTs - スレッドタイムスタンプ
  * @returns {Promise<string>} - ローカルファイルパス
  */
-exports.downloadFile = async (file, channelId, threadTs) => {
+async function downloadFile(file, channelId, threadTs) {
   try {
     logger.info(`ファイルダウンロード開始: ${file.name}, channel=${channelId}, thread=${threadTs}`);
 
@@ -92,14 +89,14 @@ exports.downloadFile = async (file, channelId, threadTs) => {
     logger.error(`ファイルダウンロード中にエラーが発生しました: ${error.message}`, { error });
     throw error;
   }
-};
+}
 
 /**
  * 一時ファイルをクリーンアップする
  * @param {string} filePath - ファイルパス
  * @returns {Promise<void>}
  */
-exports.cleanupTempFile = async (filePath) => {
+async function cleanupTempFile(filePath) {
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -109,4 +106,6 @@ exports.cleanupTempFile = async (filePath) => {
     // クリーンアップエラーはログに記録するが、処理は継続
     logger.warn(`一時ファイルの削除中にエラーが発生しました: ${error.message}`, { error });
   }
-};
+}
+
+export default { findTargetMediaFile, downloadFile, cleanupTempFile };

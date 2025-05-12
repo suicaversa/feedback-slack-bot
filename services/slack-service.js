@@ -1,7 +1,7 @@
-// services/slackService.js
-const { WebClient } = require('@slack/web-api');
-const config = require('../config/config.js');
-const logger = require('../utils/logger.js');
+// services/slack-service.js
+import { WebClient } from '@slack/web-api';
+import config from '../config/config.js';
+import logger from '../utils/logger.js';
 
 // Slack WebClient初期化
 const web = new WebClient(config.SLACK_BOT_TOKEN);
@@ -15,24 +15,22 @@ const web = new WebClient(config.SLACK_BOT_TOKEN);
  * @param {Array} [options.blocks] - ブロックキット
  * @returns {Promise<Object>} - Slack APIレスポンス
  */
-exports.postMessage = async ({ channel, text, thread_ts, blocks }) => {
+async function postMessage({ channel, text, thread_ts, blocks }) {
   try {
     logger.info(`メッセージ投稿: channel=${channel}, thread=${thread_ts || 'なし'}`);
-    
     const result = await web.chat.postMessage({
       channel,
       text,
       thread_ts,
       blocks,
     });
-    
     logger.info(`メッセージ投稿完了: ts=${result.ts}`);
     return result;
   } catch (error) {
     logger.error(`メッセージ投稿中にエラーが発生しました: ${error.message}`, { error });
     throw error;
   }
-};
+}
 
 /**
  * Slackにファイルをアップロードする
@@ -146,3 +144,5 @@ exports.getFileDownloadUrl = async (fileId) => {
     throw error;
   }
 };
+
+export default { postMessage };

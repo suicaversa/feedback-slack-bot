@@ -1,10 +1,10 @@
-// services/storageService.js
-const { Storage } = require('@google-cloud/storage');
-const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
-const config = require('../config/config.js');
-const logger = require('../utils/logger.js');
+// services/storage-service.js
+import { Storage } from '@google-cloud/storage';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+import config from '../config/config.js';
+import logger from '../utils/logger.js';
 
 // Google Cloud Storageクライアントの初期化
 const storage = new Storage();
@@ -17,7 +17,7 @@ const bucketName = config.GCS_BUCKET_NAME;
  * @param {string} threadTs - スレッドタイムスタンプ
  * @returns {Promise<string>} - GCSファイルURI
  */
-exports.uploadFile = async (filePath, channelId, threadTs) => {
+async function uploadFile(filePath, channelId, threadTs) {
   try {
     logger.info(`GCSアップロード開始: ${path.basename(filePath)}, channel=${channelId}, thread=${threadTs}`);
     
@@ -51,7 +51,7 @@ exports.uploadFile = async (filePath, channelId, threadTs) => {
     logger.error(`GCSアップロード中にエラーが発生しました: ${error.message}`, { error });
     throw error;
   }
-};
+}
 
 /**
  * GCSからファイルをダウンロードする
@@ -144,3 +144,5 @@ function parseGcsUri(gcsUri) {
     fileName: match[2],
   };
 }
+
+export default { uploadFile };
