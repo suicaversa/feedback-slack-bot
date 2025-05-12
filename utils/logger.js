@@ -1,6 +1,6 @@
 // utils/logger.js
-const winston = require('winston');
-const { LoggingWinston } = require('@google-cloud/logging-winston');
+import winston from 'winston';
+import { LoggingWinston } from '@google-cloud/logging-winston';
 
 // 環境変数からログレベルを取得（デフォルトはinfo）
 const logLevel = process.env.LOG_LEVEL || 'info';
@@ -47,4 +47,4 @@ const logger = winston.createLogger({
   exitOnError: false
 });
 
-module.exports = logger;
+export default logger;

@@ -1,9 +1,13 @@
 // services/ai-strategies/waltz-feedback-strategy.js
-const fs = require('fs');
-const path = require('path');
-const logger = require('../../utils/logger.js'); // Correct path to logger
+import fs from 'fs';
+import path from 'path';
+import logger from '../../utils/logger.js';
+import { fileURLToPath } from 'url';
 
-const promptFilePath = path.join(__dirname, '../../prompts/waltz_prompt.txt'); // Correct path to prompt
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const promptFilePath = path.join(__dirname, '../../prompts/waltz_prompt.txt');
 
 /**
  * Waltzフィードバック用のプロンプトパーツを準備する
@@ -60,6 +64,6 @@ function preparePromptParts(uploadedFiles, additionalContext) {
   return promptParts;
 }
 
-module.exports = {
+export default {
   preparePromptParts,
 };

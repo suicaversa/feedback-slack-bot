@@ -1,5 +1,5 @@
 // config/config.js
-require('dotenv').config();
+import 'dotenv/config';
 
 /**
  * 環境変数を取得し、存在しない場合はエラーをスローする
@@ -17,7 +17,7 @@ function getEnv(name, required = true) {
   return value;
 }
 
-module.exports = {
+export default {
   // Slack設定
   SLACK_BOT_TOKEN: getEnv('SLACK_BOT_TOKEN'),
   SLACK_SIGNING_SECRET: getEnv('SLACK_SIGNING_SECRET'),

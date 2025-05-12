@@ -1,7 +1,11 @@
 // services/ai-strategies/matsuura-feedback-strategy.js
-const fs = require('fs');
-const path = require('path');
-const logger = require('../../utils/logger.js'); // パスを修正
+import fs from 'fs';
+import path from 'path';
+import logger from '../../utils/logger.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * 松浦さんAIフィードバック用のプロンプトパーツを準備する
@@ -38,7 +42,7 @@ function preparePromptParts(uploadedFiles, commandContext) {
   return promptParts;
 }
 
-module.exports = {
+export default {
   preparePromptParts,
   // 必要であれば、この戦略固有の generationConfig を返す関数なども定義できる
   // getGenerationConfig: () => ({ temperature: 0.5, ... })

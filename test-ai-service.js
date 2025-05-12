@@ -2,10 +2,10 @@
 // ai-service.js の processMediaFile 関数を直接呼び出してテストするためのスクリプト
 // 使い方: node test-ai-service.js <ファイルパス>
 
-require('dotenv').config(); // .env ファイルから環境変数を読み込む
-const path = require('path');
-const aiService = require('./services/ai-service.js');
-const logger = require('./utils/logger.js'); // ログ出力用にloggerも使う
+import 'dotenv/config'; // .env ファイルから環境変数を読み込む
+import path from 'path';
+import { processMediaFile } from './services/ai-service.js';
+import logger from './utils/logger.js'; // ログ出力用にloggerも使う
 
 // --- 設定 ---
 const TEST_COMMAND = 'フィードバック'; // デフォルトのフィードバックコマンドを使用
@@ -40,7 +40,7 @@ async function runTest() {
   logger.info(`  ファイルタイプ (推定): ${fileType}`);
 
   try {
-    const result = await aiService.processMediaFile({
+    const result = await processMediaFile({
       filePath: TEST_FILE_PATH,
       fileType: fileType,
       command: TEST_COMMAND,

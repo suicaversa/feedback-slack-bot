@@ -36,5 +36,6 @@
     "nodemon": "^3.0.1"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "type": "module"
 }

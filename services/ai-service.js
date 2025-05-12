@@ -1,19 +1,19 @@
 // services/aiService.js
 // Vertex AI SDK (旧実装) はコメントアウトまたは削除 - Gemini API (generative-ai SDK) を使用
 // const { VertexAI } = require('@google-cloud/vertexai');
-const { GoogleGenerativeAI } = require("@google/generative-ai"); // Type と GoogleAIFileManager を削除
-const fs = require('fs'); // ファイルサイズ取得に必要
-const path = require('path');
+import { GoogleGenAI } from "@google/genai";
+import fs from "fs";
+import path from "path";
 // storageService は Gemini API ファイルアップロードを使うため不要になる可能性あり
 // const storageService = require('./storage-service.js');
-const logger = require('../utils/logger.js');
-const config = require('../config/config.js');
+import logger from "../utils/logger.js";
+import config from "../config/config.js";
 // Strategy を読み込む
-const DefaultFeedbackStrategy = require('./ai-strategies/default-feedback-strategy.js');
-const MatsuuraFeedbackStrategy = require('./ai-strategies/matsuura-feedback-strategy.js');
-const WaltzFeedbackStrategy = require('./ai-strategies/waltz-feedback-strategy.js'); // Waltz戦略を読み込む
+import DefaultFeedbackStrategy from "./ai-strategies/default-feedback-strategy.js";
+import MatsuuraFeedbackStrategy from "./ai-strategies/matsuura-feedback-strategy.js";
+import WaltzFeedbackStrategy from "./ai-strategies/waltz-feedback-strategy.js"; // Waltz戦略を読み込む
 // 新しいサービスを require
-const geminiFileService = require('./gemini-file-service.js');
+import * as geminiFileService from "./gemini-file-service.js";
 
 // Gemini API クライアントの初期化 (genAI のみ)
 // TODO: config.js で GEMINI_API_KEY を必須にするか検討
@@ -24,7 +24,7 @@ if (!apiKey) {
   // throw new Error('GEMINI_API_KEY is not set.');
 }
 // genAI の初期化時に apiKey の存在を確認
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
 // const fileManager = new GoogleAIFileManager(apiKey); // fileManager の初期化を削除
 
 // Vertex AI クライアントの初期化 (旧実装 - コメントアウト)
@@ -73,7 +73,7 @@ function selectStrategy(commandAction) {
  * @param {string} options.threadTs - スレッドタイムスタンプ (追加)
  * @returns {Promise<string>} - 処理結果
  */
-exports.processMediaFile = async ({ filePath, fileType, command, additionalContext, channelId, threadTs }) => {
+export const processMediaFile = async ({ filePath, fileType, command, additionalContext, channelId, threadTs }) => {
   logger.info(`メディアファイル処理開始: ${path.basename(filePath)}, コマンド: ${command}, channel=${channelId}, thread=${threadTs}`);
 
   if (!apiKey) {
@@ -90,9 +90,6 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
     // ファイルサイズに基づいてモデル名を決定
     const modelName = fileSizeInMegabytes > 50 ? 'gemini-1.5-pro-latest' : 'gemini-2.5-pro-preview-03-25';
     logger.info(`Selected model based on file size: ${modelName}`);
-
-    // モデルインスタンスを取得
-    const model = genAI.getGenerativeModel({ model: modelName });
 
     // 生成設定 (ここに関数スコープで定義)
     const generationConfig = {
@@ -156,45 +153,29 @@ exports.processMediaFile = async ({ filePath, fileType, command, additionalConte
 
     // 5. Gemini API 呼び出し (共通処理)
     logger.info('Generating content with Gemini API...');
-    // const chatSession = model.startChat({ // サンプルのstartChatを使う場合
-    //   generationConfig,
-    //   history: [{ role: "user", parts: promptParts.slice(0, -1) }], // ファイル部分をhistoryに
-    // });
-    // const result = await chatSession.sendMessage(promptParts[promptParts.length - 1].text); // テキストプロンプトを送信
-
-    // generateContent を使う場合 (より直接的)
-    const result = await model.generateContent({
+    // generateContent を直接呼び出す
+    const result = await genAI.models.generateContent({
+        model: modelName,
         contents: [{ role: "user", parts: promptParts }],
         generationConfig,
     });
 
     logger.info('Gemini API response received.');
-    const response = result.response;
-
-    // TODO: サンプルにあったレスポンス内のファイル書き出し処理は不要なら削除
-    // const candidates = response.candidates;
-    // ... (ファイル書き出し部分) ...
-
-    // 6. 結果テキストを返す (共通処理)
-    // エラーハンドリング: candidatesがない、または空の場合など
-    if (!response.candidates || response.candidates.length === 0 || !response.candidates[0].content || !response.candidates[0].content.parts || response.candidates[0].content.parts.length === 0) {
-        logger.error('Gemini API response is empty or invalid.', { response });
+    const responseText = result.text;
+    if (!responseText || responseText.length === 0) {
+        logger.error('Gemini API response is empty or invalid.', { result });
         throw new Error('Gemini API did not return valid content.');
     }
-    // シンプルに最初のテキストパートを返すことを想定
-    const responseText = response.candidates[0].content.parts[0].text;
     logger.info(`Gemini Result Text (first 100 chars): ${responseText.substring(0,100)}...`);
 
     // 使用したモデル名をデバッグ情報として末尾に追加
-    const debugMessage = `\n\n\`\`\`\nDebug: Used model: ${modelName}\n\`\`\``;
+    const debugMessage = `\n\n\\nDebug: Used model: ${modelName}\n\`;
     const finalResponseText = responseText + debugMessage;
 
     // 7. アップロードしたファイルを削除 (クリーンアップ) (geminiFileService を使用)
-    //    結果取得後に実行
-    await geminiFileService.deleteFiles(uploadedFiles); // Pass the array of uploaded file objects
+    await geminiFileService.deleteFiles(uploadedFiles);
 
-
-    return finalResponseText; // 変更: デバッグメッセージ付きのテキストを返す
+    return finalResponseText;
 
   } catch (error) {
     // エラー発生時にもファイルの削除を試みる (ベストエフォート)
