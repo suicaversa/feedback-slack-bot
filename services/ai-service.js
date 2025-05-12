@@ -1,44 +1,21 @@
 // services/aiService.js
-// Vertex AI SDK (旧実装) はコメントアウトまたは削除 - Gemini API (generative-ai SDK) を使用
-// const { VertexAI } = require('@google-cloud/vertexai');
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import path from "path";
-// storageService は Gemini API ファイルアップロードを使うため不要になる可能性あり
-// const storageService = require('./storage-service.js');
 import logger from "../utils/logger.js";
 import config from "../config/config.js";
-// Strategy を読み込む
 import DefaultFeedbackStrategy from "./ai-strategies/default-feedback-strategy.js";
 import MatsuuraFeedbackStrategy from "./ai-strategies/matsuura-feedback-strategy.js";
 import WaltzFeedbackStrategy from "./ai-strategies/waltz-feedback-strategy.js"; // Waltz戦略を読み込む
-// 新しいサービスを require
 import * as geminiFileService from "./gemini-file-service.js";
 
-// Gemini API クライアントの初期化 (genAI のみ)
-// TODO: config.js で GEMINI_API_KEY を必須にするか検討
 const apiKey = config.GEMINI_API_KEY || process.env.GEMINI_API_KEY; // config経由または直接環境変数から取得
 if (!apiKey) {
   logger.error('GEMINI_API_KEY が設定されていません。');
-  // 起動時にエラーにするか、処理時にエラーにするか検討
-  // throw new Error('GEMINI_API_KEY is not set.');
+  throw new Error('GEMINI_API_KEY is not set.');
 }
-// genAI の初期化時に apiKey の存在を確認
+
 const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
-// const fileManager = new GoogleAIFileManager(apiKey); // fileManager の初期化を削除
-
-// Vertex AI クライアントの初期化 (旧実装 - コメントアウト)
-/*
-const vertexai = new VertexAI({
-  project: config.GCP_PROJECT_ID, // Vertex AI SDK を使う場合は必要
-  location: config.GCP_LOCATION, // Vertex AI SDK を使う場合は必要
-});
-*/
-
-// --- モデルと生成設定は processMediaFile 内で動的に決定 ---
-
-// --- ヘルパー関数は gemini-file-service.js に移動 ---
-
 
 /**
  * コマンドに基づいて適切なAI処理戦略を選択する
