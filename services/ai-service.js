@@ -38,6 +38,97 @@ function selectStrategy(commandAction) {
   }
 }
 
+// --- private関数群 ---
+function getFileSizeInMegabytes(filePath) {
+  const stats = fs.statSync(filePath);
+  return stats.size / (1024 * 1024);
+}
+
+function selectModelName(fileSizeInMegabytes) {
+  return fileSizeInMegabytes > 50 ? 'gemini-1.5-pro-latest' : 'gemini-2.5-pro-preview-03-25';
+}
+
+function detectMimeType(fileType) {
+  if (isAudioFile(fileType)) {
+    if (fileType === 'mp3') return 'audio/mpeg';
+    if (fileType === 'wav') return 'audio/wav';
+    if (fileType === 'm4a') return 'audio/mp4';
+    if (fileType === 'ogg') return 'audio/ogg';
+    if (fileType === 'flac') return 'audio/flac';
+    return `audio/${fileType}`;
+  } else if (isVideoFile(fileType)) {
+    if (fileType === 'mp4') return 'video/mp4';
+    if (fileType === 'mov') return 'video/quicktime';
+    if (fileType === 'avi') return 'video/x-msvideo';
+    if (fileType === 'webm') return 'video/webm';
+    if (fileType === 'mkv') return 'video/x-matroska';
+    return `video/${fileType}`;
+  }
+  return 'application/octet-stream';
+}
+
+function decideFilesToUpload(command, filePath, detectedMimeType) {
+  if (command === 'matsuura_feedback' || command === 'waltz_feedback') {
+    return [
+      { path: filePath, mimeType: detectedMimeType },
+    ];
+  } else {
+    return [
+      { path: "assets/how_to_evaluate.pdf", mimeType: "application/pdf" },
+      { path: "assets/how_to_sales.pdf", mimeType: "application/pdf" },
+      { path: filePath, mimeType: detectedMimeType },
+    ];
+  }
+}
+
+async function uploadFiles(filesToUploadConfig) {
+  return await Promise.all(
+    filesToUploadConfig.map(file => geminiFileService.uploadFile(file.path, file.mimeType))
+  );
+}
+
+async function waitForFilesActive(uploadedFiles) {
+  await geminiFileService.waitForFilesActive(uploadedFiles);
+}
+
+function preparePromptParts(strategy, uploadedFiles, additionalContext) {
+  return strategy.preparePromptParts(uploadedFiles, additionalContext);
+}
+
+async function generateGeminiContent(modelName, promptParts, generationConfig) {
+  return await genAI.models.generateContent({
+    model: modelName,
+    contents: [{ role: "user", parts: promptParts }],
+    generationConfig,
+  });
+}
+
+function validateAndFormatResponse(result, modelName) {
+  const responseText = result.text;
+  if (!responseText || responseText.length === 0) {
+    logger.error('Gemini API response is empty or invalid.', { result });
+    throw new Error('Gemini API did not return valid content.');
+  }
+  logger.info(`Gemini Result Text (first 100 chars): ${responseText.substring(0,100)}...`);
+  const debugMessage = `\n\n\u007f\u007f\u007f\nDebug: Used model: ${modelName}\n\u007f\u007f\u007f`;
+  return responseText + debugMessage;
+}
+
+async function cleanupUploadedFiles(uploadedFiles) {
+  await geminiFileService.deleteFiles(uploadedFiles);
+}
+
+function logError(error) {
+  logger.error(`AI処理中にエラーが発生しました: ${error.message}`, {
+    errorMessage: error.message,
+    errorStack: error.stack,
+    errorCause: error.cause,
+    errorObject: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+  });
+  if (error.errorDetails) {
+    logger.error('Gemini API Error Details:', error.errorDetails);
+  }
+}
 
 /**
  * メディアファイルを処理する
@@ -57,18 +148,17 @@ export const processMediaFile = async ({ filePath, fileType, command, additional
     throw new Error('GEMINI_API_KEY is not configured.');
   }
 
+  let uploadedFiles = null;
   try {
     // ファイルサイズを取得 (MB)
-    const stats = fs.statSync(filePath);
-    const fileSizeInBytes = stats.size;
-    const fileSizeInMegabytes = fileSizeInBytes / (1024 * 1024);
+    const fileSizeInMegabytes = getFileSizeInMegabytes(filePath);
     logger.info(`File size: ${fileSizeInMegabytes.toFixed(2)} MB`);
 
     // ファイルサイズに基づいてモデル名を決定
-    const modelName = fileSizeInMegabytes > 50 ? 'gemini-1.5-pro-latest' : 'gemini-2.5-pro-preview-03-25';
+    const modelName = selectModelName(fileSizeInMegabytes);
     logger.info(`Selected model based on file size: ${modelName}`);
 
-    // 生成設定 (ここに関数スコープで定義)
+    // 生成設定
     const generationConfig = {
       temperature: 1,
       topP: 0.95,
@@ -80,103 +170,44 @@ export const processMediaFile = async ({ filePath, fileType, command, additional
     // 1. コマンドに基づいて戦略を選択
     const strategy = selectStrategy(command);
 
-    // 2. ファイルを Gemini API にアップロード (戦略に応じてアップロードするファイルを変える)
-    let filesToUploadConfig;
-    let detectedMimeType = 'application/octet-stream'; // デフォルト
-
-    // MimeType 判定 (共通処理)
-    // TODO: mime-types ライブラリを使うなど、より堅牢な判定方法を検討
-    if (isAudioFile(fileType)) {
-      if (fileType === 'mp3') detectedMimeType = 'audio/mpeg';
-      else if (fileType === 'wav') detectedMimeType = 'audio/wav';
-      else if (fileType === 'm4a') detectedMimeType = 'audio/mp4'; // M4A often uses mp4 container
-      else if (fileType === 'ogg') detectedMimeType = 'audio/ogg';
-      else if (fileType === 'flac') detectedMimeType = 'audio/flac';
-      else detectedMimeType = `audio/${fileType}`;
-    } else if (isVideoFile(fileType)) {
-      if (fileType === 'mp4') detectedMimeType = 'video/mp4';
-      else if (fileType === 'mov') detectedMimeType = 'video/quicktime';
-      else if (fileType === 'avi') detectedMimeType = 'video/x-msvideo';
-      else if (fileType === 'webm') detectedMimeType = 'video/webm';
-      else if (fileType === 'mkv') detectedMimeType = 'video/x-matroska';
-      else detectedMimeType = `video/${fileType}`;
-    }
+    // 2. MimeType 判定
+    const detectedMimeType = detectMimeType(fileType);
     logger.info(`Detected MimeType: ${detectedMimeType} for fileType: ${fileType}`);
 
-    // 戦略に応じてアップロードするファイルを決定
-    // command は command-parser.js の action が渡される想定
-    if (command === 'matsuura_feedback' || command === 'waltz_feedback') { // waltz_feedback を追加
-      filesToUploadConfig = [
-        { path: filePath, mimeType: detectedMimeType }, // メディアファイルのみ
-      ];
-    } else {
-      filesToUploadConfig = [
-        { path: "assets/how_to_evaluate.pdf", mimeType: "application/pdf" },
-        { path: "assets/how_to_sales.pdf", mimeType: "application/pdf" },
-        { path: filePath, mimeType: detectedMimeType }, // ドキュメント + メディアファイル
-      ];
-    }
+    // 3. 戦略に応じてアップロードするファイルを決定
+    const filesToUploadConfig = decideFilesToUpload(command, filePath, detectedMimeType);
 
-    // ファイルアップロード実行 (geminiFileService を使用)
-    const uploadedFiles = await Promise.all(
-        filesToUploadConfig.map(file => geminiFileService.uploadFile(file.path, file.mimeType))
-    );
+    // 4. ファイルアップロード
+    uploadedFiles = await uploadFiles(filesToUploadConfig);
 
-    // 3. ファイル処理待機 (geminiFileService を使用)
-    await geminiFileService.waitForFilesActive(uploadedFiles);
+    // 5. ファイル処理待機
+    await waitForFilesActive(uploadedFiles);
 
-    // 4. プロンプト準備 (戦略に委譲)
-    const promptParts = strategy.preparePromptParts(uploadedFiles, additionalContext);
+    // 6. プロンプト準備
+    const promptParts = preparePromptParts(strategy, uploadedFiles, additionalContext);
 
-    // 5. Gemini API 呼び出し (共通処理)
+    // 7. Gemini API 呼び出し
     logger.info('Generating content with Gemini API...');
-    // generateContent を直接呼び出す
-    const result = await genAI.models.generateContent({
-        model: modelName,
-        contents: [{ role: "user", parts: promptParts }],
-        generationConfig,
-    });
-
+    const result = await generateGeminiContent(modelName, promptParts, generationConfig);
     logger.info('Gemini API response received.');
-    const responseText = result.text;
-    if (!responseText || responseText.length === 0) {
-        logger.error('Gemini API response is empty or invalid.', { result });
-        throw new Error('Gemini API did not return valid content.');
-    }
-    logger.info(`Gemini Result Text (first 100 chars): ${responseText.substring(0,100)}...`);
 
-    // 使用したモデル名をデバッグ情報として末尾に追加
-    const debugMessage = `\n\n\\nDebug: Used model: ${modelName}\n\`;
-    const finalResponseText = responseText + debugMessage;
+    // 8. レスポンス検証・整形
+    const finalResponseText = validateAndFormatResponse(result, modelName);
 
-    // 7. アップロードしたファイルを削除 (クリーンアップ) (geminiFileService を使用)
-    await geminiFileService.deleteFiles(uploadedFiles);
+    // 9. アップロードしたファイルを削除 (クリーンアップ)
+    await cleanupUploadedFiles(uploadedFiles);
 
     return finalResponseText;
 
   } catch (error) {
-    // エラー発生時にもファイルの削除を試みる (ベストエフォート)
-    // uploadedFiles 変数が try ブロック内で定義されているため、catch ブロック外でアクセスできない
-    // エラーハンドリング内で削除を試みる場合は、uploadedFiles を try の外で宣言する必要がある
-    // ここでは、エラー発生前の削除処理が完了していることを前提とするか、
-    // または geminiFileService.deleteFiles が冪等であることを期待する。
-    // 現状の実装では、エラー発生 *後* の削除は行わない。
-    // エラーメッセージに加えて、エラーオブジェクト全体をログに出力する
-    // JSON.stringify を使うことで、ネストされた情報も確認しやすくなる可能性がある
-    // 第3引数に 2 を指定して整形する
-    logger.error(`AI処理中にエラーが発生しました: ${error.message}`, {
-      errorMessage: error.message,
-      errorStack: error.stack, // スタックトレースを追加
-      errorCause: error.cause, // fetchエラーの場合、causeに詳細が含まれることがある
-      errorObject: JSON.stringify(error, Object.getOwnPropertyNames(error), 2) // エラーオブジェクトの全プロパティを文字列化
-    });
-    // error.errorDetails は Google API エラーでよく使われるプロパティなので残しておく
-    if (error.errorDetails) {
-      logger.error('Gemini API Error Details:', error.errorDetails);
+    logError(error);
+    // エラー発生時にもファイルの削除を試みる
+    if (uploadedFiles) {
+      await cleanupUploadedFiles(uploadedFiles);
     }
-    throw error; // エラーを再スローして呼び出し元で処理させる
+    throw error;
   }
-}; // exports.processMediaFile の閉じ括弧を追加
+};
 
 // extractTimeRangesFromText は time-extraction-service.js に移動
 
