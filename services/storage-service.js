@@ -59,7 +59,7 @@ async function uploadFile(filePath, channelId, threadTs) {
  * @param {string} [destPath] - 保存先パス（省略時は一時ディレクトリ）
  * @returns {Promise<string>} - ローカルファイルパス
  */
-exports.downloadFile = async (gcsUri, destPath) => {
+export async function downloadFile(gcsUri, destPath) {
   try {
     logger.info(`GCSダウンロード開始: ${gcsUri}`);
     
@@ -96,14 +96,14 @@ exports.downloadFile = async (gcsUri, destPath) => {
     logger.error(`GCSダウンロード中にエラーが発生しました: ${error.message}`, { error });
     throw error;
   }
-};
+}
 
 /**
  * GCSからファイルを削除する
  * @param {string} gcsUri - GCSファイルURI
  * @returns {Promise<void>}
  */
-exports.deleteFile = async (gcsUri) => {
+export async function deleteFile(gcsUri) {
   try {
     logger.info(`GCS削除開始: ${gcsUri}`);
     
@@ -126,7 +126,7 @@ exports.deleteFile = async (gcsUri) => {
     // 削除エラーはログに記録するが、処理は継続
     logger.warn(`GCS削除中にエラーが発生しました: ${error.message}`, { error });
   }
-};
+}
 
 /**
  * GCS URIをパースする

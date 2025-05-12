@@ -1,5 +1,3 @@
-import './instrument.js';
-import * as Sentry from '@sentry/node';
 import 'dotenv/config';
 import path from 'path';
 import fs from 'fs/promises';
@@ -186,7 +184,6 @@ async function main() {
 main().catch((error) => {
   // main関数内でキャッチされなかったエラー、または再スローされたエラー
   logger.error(`Cloud Run Jobが最終的に失敗しました: ${error.message}`, { error });
-  Sentry.captureException(error);
   // Cloud Run Job は非ゼロの終了コードで終了し、失敗としてマークされる
   process.exit(1);
 });

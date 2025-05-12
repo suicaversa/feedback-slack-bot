@@ -1,10 +1,10 @@
 // services/media-clipping-service.js
-const path = require('path');
-const fs = require('fs').promises;
-const timeExtractionService = require('./time-extraction-service.js');
-const MediaEditingService = require('./media-editing-service.js');
-const slackService = require('./slack-service.js');
-const logger = require('../utils/logger.js');
+import path from 'path';
+import fs from 'fs/promises';
+import timeExtractionService from './time-extraction-service.js';
+import MediaEditingService from './media-editing-service.js';
+import slackService from './slack-service.js';
+import logger from '../utils/logger.js';
 
 /**
  * Handles the media clipping workflow.
@@ -103,6 +103,4 @@ async function handleClippingRequest({ commandContext, localFilePath, channelId,
     }
 }
 
-module.exports = {
-    handleClippingRequest,
-};
+export default { handleClippingRequest };

@@ -43,7 +43,7 @@ async function postMessage({ channel, text, thread_ts, blocks }) {
  * @param {string} [options.title] - ファイルのタイトル
  * @returns {Promise<object>} - Slack APIレスポンス (files.uploadV2)
  */
-exports.uploadFile = async ({ channels, thread_ts, filePath, filename, initial_comment, title }) => {
+export async function uploadFile({ channels, thread_ts, filePath, filename, initial_comment, title }) {
   try {
     const fileReadStream = require('fs').createReadStream(filePath);
     const effectiveFilename = filename || require('path').basename(filePath);
@@ -89,7 +89,7 @@ exports.uploadFile = async ({ channels, thread_ts, filePath, filename, initial_c
  * @param {string} threadTs - スレッドID
  * @returns {Promise<Array>} - ファイルオブジェクトの配列
  */
-exports.getFilesInThread = async (channel, threadTs) => {
+export async function getFilesInThread(channel, threadTs) {
   try {
     logger.info(`スレッド内のファイル取得: channel=${channel}, thread=${threadTs}`);
     
@@ -126,7 +126,7 @@ exports.getFilesInThread = async (channel, threadTs) => {
  * @param {string} fileId - ファイルID
  * @returns {Promise<string>} - ダウンロードURL
  */
-exports.getFileDownloadUrl = async (fileId) => {
+export async function getFileDownloadUrl(fileId) {
   try {
     logger.info(`ファイル情報取得: fileId=${fileId}`);
     
@@ -145,4 +145,4 @@ exports.getFileDownloadUrl = async (fileId) => {
   }
 };
 
-export default { postMessage };
+export default { postMessage, getFilesInThread, getFileDownloadUrl };

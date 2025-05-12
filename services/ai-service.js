@@ -222,3 +222,5 @@ function isVideoFile(fileType) {
   const videoTypes = ['mp4', 'mov', 'avi', 'webm', 'mkv'];
   return videoTypes.includes(fileType.toLowerCase());
 }
+
+export default { processMediaFile };

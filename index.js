@@ -46,3 +46,6 @@ app.use((err, req, res, next) => {
 
 // Express アプリケーションインスタンスをエクスポート
 export default app;
+
+// Cloud Functions用エクスポート
+export const slackBotFunction = app;
