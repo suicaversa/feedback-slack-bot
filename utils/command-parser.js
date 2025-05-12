@@ -37,20 +37,13 @@ function parseCommand(text) {
     }
 
     // コマンドの判定とコンテキスト抽出
-    let commandFound = false;
     for (const mapping of commandMappings) {
-      for (const keyword of mapping.keywords) {
-        if (cleanedText.includes(keyword)) {
-          action = mapping.action;
-          // キーワード以降のテキストをcontextとする
-          const keywordIndex = cleanedText.indexOf(keyword);
-          context = cleanedText.substring(keywordIndex + keyword.length).trim();
-          commandFound = true;
-          break;
-        }
+      if (mapping.keywords.some(keyword => cleanedText.includes(keyword))) {
+        action = mapping.action;
+        break;
       }
-      if (commandFound) break;
     }
+    context = cleanedText;
 
     logger.info(`コマンド解析: action=${action}, context=${context}`);
     return { isValid, action, context };
