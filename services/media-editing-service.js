@@ -1,8 +1,8 @@
-const { exec } = require('child_process');
-const path = require('path');
-const fs = require('fs').promises;
-const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger'); // Assuming logger exists
+import { exec } from 'child_process';
+import path from 'path';
+import fs from 'fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger.js';
 
 class MediaEditingService {
 
@@ -174,4 +174,4 @@ class MediaEditingService {
     }
 }
 
-module.exports = MediaEditingService;
+export default MediaEditingService;

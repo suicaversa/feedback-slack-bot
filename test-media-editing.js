@@ -1,6 +1,10 @@
-const path = require('path');
-const MediaEditingService = require('./services/media-editing-service');
-const logger = require('./utils/logger'); // Assuming logger exists
+import path from 'path';
+import { fileURLToPath } from 'url';
+import MediaEditingService from './services/media-editing-service.js';
+import logger from './utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- Configuration ---
 const inputFile = path.join(__dirname, 'tmp', 'failed_sample.mp4'); // Path to your sample media file
