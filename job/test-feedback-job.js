@@ -1,4 +1,4 @@
-// job/test-waltz-feedback.js
+// job/test-feedback-job.js
 // このスクリプトは、aiService.processMediaFile を直接呼び出して
 // 'waltz_feedback' モードの動作をテストします。
 
@@ -10,9 +10,9 @@ const aiService = require('../services/ai-service.js');
 const logger = require('../utils/logger.js');
 
 // テスト用パラメータ
-const testFilePath = path.join(__dirname, '../assets/sample.mp3'); // テスト用音声ファイル
+const testFilePath = path.join(__dirname, '../tmp/failed_sample.mp4'); // テスト用音声ファイル
 const testFileType = 'mp3';
-const testCommand = 'waltz_feedback'; // テスト対象のコマンド
+const testCommand = process.argv[2] || 'waltz_feedback'; // コマンドライン引数対応
 const testAdditionalContext = 'これはテスト用の追加コンテキストです。'; // 必要に応じて設定
 const testChannelId = 'C12345TEST'; // ダミー値
 const testThreadTs = '1234567890.123456'; // ダミー値
