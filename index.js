@@ -1,10 +1,10 @@
 // index.js - メインエントリーポイント
-require('dotenv').config();
-const express = require('express');
-const bodyParser = require('body-parser');
-const slackController = require('./controllers/slack-controller.js');
-const slackVerifier = require('./utils/slack-verifier.js');
-const logger = require('./utils/logger.js');
+import 'dotenv/config';
+import express from 'express';
+import bodyParser from 'body-parser';
+import slackController from './controllers/slack-controller.js';
+import slackVerifier from './utils/slack-verifier.js';
+import logger from './utils/logger.js';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -45,4 +45,4 @@ app.use((err, req, res, next) => {
 // });
 
 // Express アプリケーションインスタンスをエクスポート
-exports.slackBotFunction = app; // エクスポート名は何でも良いが、デプロイ時に指定する
+export default app;

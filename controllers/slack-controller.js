@@ -1,10 +1,10 @@
 // controllers/slack-controller.js
-const { JobsClient } = require('@google-cloud/run').v2; // ★ Import JobsClient
-const slackService = require('../services/slack-service.js');
-const fileService = require('../services/file-service.js');
+import { JobsClient } from '@google-cloud/run';
+import slackService from '../services/slack-service.js';
+import fileService from '../services/file-service.js';
 // const aiService = require('../services/ai-service.js'); // Job側で使うので削除
-const commandParser = require('../utils/command-parser.js');
-const logger = require('../utils/logger.js');
+import commandParser from '../utils/command-parser.js';
+import logger from '../utils/logger.js';
 
 // ★ Instantiate JobsClient
 const jobsClient = new JobsClient();
@@ -14,7 +14,7 @@ const jobsClient = new JobsClient();
  * @param {Object} req - リクエストオブジェクト
  * @param {Object} res - レスポンスオブジェクト
  */
-exports.handleSlackEvent = async (req, res) => {
+const handleSlackEvent = async (req, res) => {
   // 即時レスポンスを返す（Slackのタイムアウト対策）
   res.status(200).send();
 
@@ -136,3 +136,5 @@ exports.handleSlackEvent = async (req, res) => {
     }
   }
 };
+
+export default { handleSlackEvent };

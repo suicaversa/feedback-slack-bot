@@ -1,19 +1,13 @@
-require("./instrument.js");
-  
-const Sentry = require("@sentry/node");
-require('dotenv').config({ path: '../.env' }); // ルートの.envを参照する場合
-
-const path = require('path');
-const fs = require('fs').promises; // cleanupTempFileで使うため
-
-
-// サービスとユーティリティをインポート (パスを調整)
-const slackService = require('../services/slack-service.js');
-const fileService = require('../services/file-service.js');
-const aiService = require('../services/ai-service.js');
-const mediaClippingService = require('../services/media-clipping-service.js'); // 追加
-const logger = require('../utils/logger.js'); // loggerもルートから参照
-// timeExtractionService と MediaEditingService は mediaClippingService 内で使われるためここでは不要
+import './instrument.js';
+import * as Sentry from '@sentry/node';
+import 'dotenv/config';
+import path from 'path';
+import fs from 'fs/promises';
+import slackService from '../services/slack-service.js';
+import fileService from '../services/file-service.js';
+import aiService from '../services/ai-service.js';
+import mediaClippingService from '../services/media-clipping-service.js';
+import logger from '../utils/logger.js';
 
 // Cloud Run Job 特有の環境変数
 const taskIndex = process.env.CLOUD_RUN_TASK_INDEX || 0;
@@ -24,10 +18,8 @@ const channelId = process.env.SLACK_CHANNEL_ID;
 const threadTs = process.env.SLACK_THREAD_TS;
 const commandAction = process.env.SLACK_COMMAND_ACTION;
 const commandContext = process.env.SLACK_COMMAND_CONTEXT;
-// const targetFileUrl = process.env.TARGET_FILE_URL; // Functionから渡されなくなったため削除
-// const targetFileType = process.env.TARGET_FILE_TYPE; // Functionから渡されなくなったため削除
-const slackEventJson = process.env.SLACK_EVENT_JSON; // ★ Functionから渡されるEvent JSON
-const slackBotToken = process.env.SLACK_BOT_TOKEN; // Jobの環境変数 or Secret Managerから取得
+const slackEventJson = process.env.SLACK_EVENT_JSON;
+const slackBotToken = process.env.SLACK_BOT_TOKEN;
 
 // メイン処理関数
 async function main() {
