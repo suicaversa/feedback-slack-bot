@@ -25,6 +25,3 @@ COPY . .
 
 # Command to run the job application
 CMD ["node", "job/index.js"]
-
-# Command to run the test-media-editing.js script
-CMD ["node", "test-media-editing.js"]
