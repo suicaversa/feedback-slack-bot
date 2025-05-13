@@ -110,7 +110,7 @@ class MediaEditingService {
 
                 const segmentOutputPath = path.join(this.tempDir, `${outputFileNamePrefix}_${uniqueId}_segment_${i}${path.extname(inputPath)}`);
                 // Re-add -c copy. Use -t (duration) and -copyts. Keep -avoid_negative_ts.
-                const command = `ffmpeg -copyts -i "${inputPath}" -ss ${range.start} -t ${duration} -c copy -avoid_negative_ts make_zero "${segmentOutputPath}"`;
+                const command = `ffmpeg -ss ${range.start} -i "${inputPath}" -t ${duration} -c copy "${segmentOutputPath}"`;
                 logger.info(`Executing ffmpeg command for segment ${i}: ${command}`);
 
                 await new Promise((resolve, reject) => {
