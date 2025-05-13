@@ -14,8 +14,10 @@ const timeRanges = [
     // { start: '00:00:05', end: '00:00:10' }, // Cut from 5s to 10s
     // { start: '00:00:15', end: '00:00:20' },  // Cut from 15s to 20s
     // { start: '00:18:05', end: '00:19:37' }
-    // 61:53-76:05を切り抜き
-    { start: '01:01:53', end: '01:16:05' }
+    // { start: '01:01:53', end: '01:16:05' }
+    // 18:05-19:37を切り抜き
+    { start: '00:18:05', end: '00:19:37' }
+
 ];
 const outputPrefix = 'test_cut';
 // --- End Configuration ---

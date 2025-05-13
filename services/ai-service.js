@@ -1,5 +1,5 @@
 // services/aiService.js
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
 import path from "path";
 import logger from "../utils/logger.js";
@@ -15,7 +15,7 @@ if (!apiKey) {
   throw new Error('GEMINI_API_KEY is not set.');
 }
 
-const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 /**
  * コマンドに基づいて適切なAI処理戦略を選択する
@@ -45,7 +45,7 @@ function getFileSizeInMegabytes(filePath) {
 }
 
 function selectModelName(fileSizeInMegabytes) {
-  return fileSizeInMegabytes > 50 ? 'gemini-1.5-pro-latest' : 'gemini-2.5-pro-preview-03-25';
+  return fileSizeInMegabytes > 50 ? 'gemini-1.5-pro' : 'gemini-2.5-pro-preview-05-06';
 }
 
 function detectMimeType(fileType) {
@@ -96,15 +96,15 @@ function preparePromptParts(strategy, uploadedFiles, additionalContext) {
 }
 
 async function generateGeminiContent(modelName, promptParts, generationConfig) {
-  return await genAI.models.generateContent({
-    model: modelName,
+  const model = genAI.getGenerativeModel({ model: modelName });
+  return await model.generateContent({
     contents: [{ role: "user", parts: promptParts }],
     generationConfig,
   });
 }
 
-function validateAndFormatResponse(result, modelName) {
-  const responseText = result.text;
+async function validateAndFormatResponse(result, modelName) {
+  const responseText = await result.response.text();
   if (!responseText || responseText.length === 0) {
     logger.error('Gemini API response is empty or invalid.', { result });
     throw new Error('Gemini API did not return valid content.');
@@ -192,7 +192,7 @@ export const processMediaFile = async ({ filePath, fileType, command, additional
     logger.info('Gemini API response received.');
 
     // 8. レスポンス検証・整形
-    const finalResponseText = validateAndFormatResponse(result, modelName);
+    const finalResponseText = await validateAndFormatResponse(result, modelName);
 
     // 9. アップロードしたファイルを削除 (クリーンアップ)
     await cleanupUploadedFiles(uploadedFiles);
