@@ -11,6 +11,7 @@ import { DefaultFeedbackPromptStrategy } from './prompt-strategies/DefaultFeedba
 import { MatsuuraFeedbackPromptStrategy } from './prompt-strategies/MatsuuraFeedbackPromptStrategy.js';
 import { WaltzFeedbackPromptStrategy } from './prompt-strategies/WaltzFeedbackPromptStrategy.js';
 import { GeminiService } from './ai-services/GeminiService.js';
+import FeedbackFromSlackStrategy from './FeedbackFromSlackStrategy.js';
 
 export class FeedbackService {
   constructor() {
