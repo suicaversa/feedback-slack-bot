@@ -13,9 +13,10 @@
     *   Slack Events API
     *   Slack Web API
     *   Google Cloud APIs (Vertex AI: Gemini, Cloud Run Admin API)
+    *   @google-cloud/run（Cloud FunctionsからJob起動用）
 *   **その他:**
-    *   Docker
-    *   ffmpeg
+    *   Docker（Job用Dockerfileでffmpegを含める）
+    *   ffmpeg（再エンコードによる正確な切り抜き）
 
 ## 開発セットアップ
 
@@ -32,7 +33,7 @@
 
 *   **Slack APIタイムアウト:** イベント通知への応答は3秒以内。Cloud FunctionsからCloud Run Jobへの非同期起動が必須。
 *   **GCP認証:** Cloud FunctionsおよびCloud Run JobからGCP API (Vertex AI, Cloud Run Admin) を呼び出すための適切なサービスアカウントとIAMロール設定が必要。
-*   **コスト:** 各GCPサービス (Cloud Functions, Cloud Run Job, Vertex AI) の利用料金が発生。
+*   **コスト:** 各GCPサービス (Cloud Functions, Cloud Run Job, Vertex AI) の利用料金が発生。Jobの実行時間・リソース利用の最適化が重要。
 *   **ローカルストレージ:** Cloud Run Jobのローカルディスク容量には制限があるため、巨大なファイルの扱いや同時処理数に注意が必要。
 
 ## 依存関係
@@ -46,12 +47,5 @@
     *   `axios` (Slack API通信、ファイルダウンロード用)
     *   `uuid`
     *   `winston` (または `utils/logger.js` のカスタムロガー)
-*   **管理:** `npm` (`package.json`, `package-lock.json`)
-
-## ツールの使用パターン
-
-*   **バージョン管理:** Git (リポジトリが存在することから推測)。
-*   **コンテナ化:** Docker (Cloud Run Jobデプロイ用)。
-*   **デプロイメント:** `gcloud` CLI, `deploy.sh` スクリプト (Function用)。
-*   **インフラ:** Google Cloud Platform (Cloud Functions, Cloud Run Job, Vertex AI)。
-*   **開発支援:** `.env` ファイルによる環境変数管理。
+    *   `ffmpeg-static` などffmpegバイナリ
+*   **管理:** `npm` (`package.json`, `

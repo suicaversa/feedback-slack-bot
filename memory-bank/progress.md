@@ -18,15 +18,15 @@
 ## 残っている作業
 
 *   **アーキテクチャ変更 (Function + Job):**
-    *   Cloud Run Job 用のコードベース作成 (ファイル処理、AI処理、Slack投稿ロジック含む)。
-    *   Cloud Run Job 用の Dockerfile 作成。
-    *   Cloud Functions (Gen 2) のコード修正 (Cloud Run Admin API で Job を起動、重い処理を削除)。
+    *   Cloud Run Job 用のコードベース作成 (ファイル処理、AI処理、Slack投稿ロジック含む)。（進行中）
+    *   Cloud Run Job 用の Dockerfile 作成（進行中）。
+    *   Cloud Functions (Gen 2) のコード修正 (Cloud Run Admin API で Job を起動、重い処理を削除)。（進行中）
     *   Cloud Run Job 用のサービスアカウント作成と権限設定。
     *   Cloud Functions のサービスアカウントに Job 起動権限を付与。
     *   Cloud Functions と Cloud Run Job のデプロイ。
     *   関連ドキュメント (Memory Bank, README等) の更新。
 *   **既存の TODO:**
-    *   **Slack署名検証の有効化:** `index.js` でコメントアウトされている署名検証を有効化する。
+    *   **Slack署名検証の有効化:** `index.js` でコメントアウトされている署名検証を有効化する（セキュリティ強化のため必須）。
 *   **その他:**
     *   Cloud Run Job のエラーハンドリングとリトライ戦略の実装。
     *   Cloud Run Job のローカルストレージ管理 (一時ファイル削除の確実化)。
@@ -63,3 +63,4 @@
 *   **Slack連携ライブラリ:** `axios`を直接利用。
 *   **ロギング:** カスタムロガー (`utils/logger.js`) を利用。
 *   **AI戦略:** `services/ai-strategies/` で管理 (デフォルト、松浦さんAI、Waltzフィードバック)。
+*   **Job起動失敗時のハンドリング:** Cloud Functions側でJob起動失敗時のエラー通知・リトライ戦略を実装予定。

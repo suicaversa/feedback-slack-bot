@@ -30,3 +30,15 @@
 
 *   **ユーザー:** Slackでファイル共有とAI処理（要約、文字起こし等）を行いたい人。
 *   **開発者/運用者:** Botの機能開発、デプロイ、メンテナンスを行う人。
+
+## 現状のアーキテクチャ
+
+現在、SlackイベントをGoogle Cloud Functions (Gen 2) で受信し、Cloud Run Jobを非同期で起動する構成へ移行中。Job側でファイル処理・AI処理・Slack投稿を実施する。
+AIはVertex AI Geminiを利用し、GCS/Speech-to-Textは不使用。
+
+## 今後の計画
+
+- Cloud Run Job用コード・Dockerfileの作成
+- Cloud FunctionsのJob起動ロジック修正
+- Slack署名検証の有効化
+- エラーハンドリング・コスト最適化
