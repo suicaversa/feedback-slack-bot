@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 // テスト用パラメータ
 const testFilePath = path.join(__dirname, '../tmp/failed_sample.mp4'); // テスト用音声ファイル
-const testFileType = 'mp3';
+const testFileType = 'mp4';
 const testCommand = process.argv[2] || 'waltz_feedback'; // コマンドライン引数対応
 const testAdditionalContext = 'これはテスト用の追加コンテキストです。'; // 必要に応じて設定
 const testChannelId = 'C12345TEST'; // ダミー値

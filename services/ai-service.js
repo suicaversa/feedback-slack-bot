@@ -1,5 +1,5 @@
 // services/aiService.js
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import path from "path";
 import logger from "../utils/logger.js";
@@ -15,7 +15,7 @@ if (!apiKey) {
   throw new Error('GEMINI_API_KEY is not set.');
 }
 
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 /**
  * コマンドに基づいて適切なAI処理戦略を選択する
@@ -96,15 +96,30 @@ function preparePromptParts(strategy, uploadedFiles, additionalContext) {
 }
 
 async function generateGeminiContent(modelName, promptParts, generationConfig) {
-  const model = genAI.getGenerativeModel({ model: modelName });
-  return await model.generateContent({
-    contents: [{ role: "user", parts: promptParts }],
-    generationConfig,
+  if (!genAI) throw new Error('GoogleGenAIインスタンスがありません');
+  const config = {
+    ...generationConfig,
+  };
+  const contents = [
+    {
+      role: "user",
+      parts: promptParts,
+    },
+  ];
+  const responseStream = await genAI.models.generateContentStream({
+    model: modelName,
+    config,
+    contents,
   });
+  let responseText = '';
+  for await (const chunk of responseStream) {
+    if (chunk.text) responseText += chunk.text;
+  }
+  return responseText;
 }
 
 async function validateAndFormatResponse(result, modelName) {
-  const responseText = await result.response.text();
+  const responseText = result;
   if (!responseText || responseText.length === 0) {
     logger.error('Gemini API response is empty or invalid.', { result });
     throw new Error('Gemini API did not return valid content.');
