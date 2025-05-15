@@ -19,7 +19,7 @@ SLACK_BOT_TOKEN="${SLACK_BOT_TOKEN:?SLACK_BOT_TOKEN environment variable is not 
 GCS_BUCKET_NAME="${GCS_BUCKET_NAME:?GCS_BUCKET_NAME environment variable is not set}"
 GEMINI_API_KEY="${GEMINI_API_KEY:?GEMINI_API_KEY environment variable is not set}"
 SLACK_SIGNING_SECRET="${SLACK_SIGNING_SECRET:?SLACK_SIGNING_SECRET environment variable is not set}" # Jobもconfigを読むので必要
-
+DEEPGRAM_API_KEY="${DEEPGRAM_API_KEY:?DEEPGRAM_API_KEY environment variable is not set}"
 # --- 実行 ---
 JOB_IMAGE_URL="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPO_NAME}/${JOB_IMAGE_NAME}:latest"
 
@@ -30,7 +30,7 @@ gcloud builds submit --config=cloudbuild.yaml --substitutions=_TAG="${JOB_IMAGE_
 
 echo "--- Deploying Cloud Run Job: ${JOB_NAME} ---"
 # 環境変数の設定を組み立てる (job/index.js が必要とする変数を .envrc から渡す)
-JOB_ENV_VARS="GCP_PROJECT_ID=${GCP_PROJECT_ID},SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN},GCS_BUCKET_NAME=${GCS_BUCKET_NAME},GEMINI_API_KEY=${GEMINI_API_KEY},SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}"
+JOB_ENV_VARS="GCP_PROJECT_ID=${GCP_PROJECT_ID},SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN},GCS_BUCKET_NAME=${GCS_BUCKET_NAME},GEMINI_API_KEY=${GEMINI_API_KEY},SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET},DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}"
 
 # gcloud run jobs deploy を使う (存在しない場合は作成、存在する場合は更新)
 gcloud run jobs deploy "${JOB_NAME}" \
