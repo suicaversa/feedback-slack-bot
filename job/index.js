@@ -2,12 +2,14 @@ import 'dotenv/config';
 import logger from '../utils/logger.js';
 import FeedbackFromSlackStrategy from '../services/FeedbackFromSlackStrategy.js';
 import MediaClipFromSlackStrategy from '../services/MediaClipFromSlackStrategy.js';
+import TranscribeAndSummarizeFromSlackStrategy from '../services/TranscribeAndSummarizeFromSlackStrategy.js';
 
 const STRATEGY_MAP = {
   feedback: FeedbackFromSlackStrategy,
   matsuura_feedback: FeedbackFromSlackStrategy,
   waltz_feedback: FeedbackFromSlackStrategy,
   clip: MediaClipFromSlackStrategy,
+  transcribe_and_summarize: TranscribeAndSummarizeFromSlackStrategy,
 };
 
 async function main() {
