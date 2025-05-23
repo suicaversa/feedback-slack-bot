@@ -29,6 +29,7 @@ export class DefaultFeedbackPromptStrategy {
         ]
       }
     ];
+    console.debug('prompt', mainPromptText);
     return await this.geminiService.generateContent({ contents });
   }
 } 
