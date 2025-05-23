@@ -2,7 +2,6 @@
 import { JobsClient } from '@google-cloud/run';
 import slackService from '../services/slack-service.js';
 import fileService from '../services/file-service.js';
-// const aiService = require('../services/ai-service.js'); // Job側で使うので削除
 import commandParser from '../utils/command-parser.js';
 import logger from '../utils/logger.js';
 
