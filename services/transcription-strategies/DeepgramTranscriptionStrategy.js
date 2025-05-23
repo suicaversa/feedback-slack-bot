@@ -24,6 +24,13 @@ function getContentType(filePath) {
   }
 }
 
+function formatTime(seconds) {
+  const min = Math.floor(seconds / 60);
+  const sec = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds - Math.floor(seconds)) * 100);
+  return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+}
+
 export class DeepgramTranscriptionStrategy extends TranscriptionStrategy {
   /**
    * @param {string} filePath
@@ -53,7 +60,10 @@ export class DeepgramTranscriptionStrategy extends TranscriptionStrategy {
       logger.warn('Deepgram: 話者分離付きの発話が見つかりませんでした。');
       return '';
     }
-    const formatted = utterances.map(u => `[SPEAKER ${u.speaker}] ${u.transcript.replace(/ /g, '')}`).join('\n');
+    const formatted = utterances.map(u => {
+      const time = formatTime(u.start);
+      return `[${time}] [SPEAKER ${u.speaker}] ${u.transcript.replace(/ /g, '')}`;
+    }).join('\n');
     logger.info('Deepgram文字起こし完了');
     return formatted;
   }

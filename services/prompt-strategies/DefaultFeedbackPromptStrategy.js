@@ -16,23 +16,19 @@ export class DefaultFeedbackPromptStrategy {
    * @returns {Promise<string>}
    */
   async generateFeedback(transcript) {
-    // PDFファイルパス
-    const files = [
-      path.join(this.__dirname, '../../assets/how_to_evaluate.pdf'),
-      path.join(this.__dirname, '../../assets/how_to_sales.pdf'),
-    ];
     // プロンプト
     const promptFilePath = path.join(this.__dirname, '../../prompts/main_prompt.txt');
-    const mainPromptText = fs.readFileSync(promptFilePath, 'utf-8');
+    let mainPromptText = fs.readFileSync(promptFilePath, 'utf-8');
+    // <transcript> を transcript で置換
+    mainPromptText = mainPromptText.replace(/<transcript>/g, transcript);
     const contents = [
       {
         role: 'user',
         parts: [
-          { text: mainPromptText },
-          { text: transcript }
+          { text: mainPromptText }
         ]
       }
     ];
-    return await this.geminiService.generateContent({ contents, files });
+    return await this.geminiService.generateContent({ contents });
   }
 } 

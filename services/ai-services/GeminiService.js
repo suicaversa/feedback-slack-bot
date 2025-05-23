@@ -6,7 +6,7 @@ export class GeminiService {
    * @param {string} apiKey
    * @param {string} [modelName]
    */
-  constructor(apiKey, modelName = 'gemini-1.5-pro') {
+  constructor(apiKey, modelName = 'gemini-2.5-pro-preview-05-06') {
     this.genAI = new GoogleGenAI({ apiKey });
     this.modelName = modelName;
   }
